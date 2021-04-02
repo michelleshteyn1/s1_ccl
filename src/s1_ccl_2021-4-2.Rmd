@@ -16,6 +16,7 @@ library(here)
 library(lubridate)
 library(janitor)
 library(kableExtra)
+library(writexl)
 ```
 
 # Conduct power analysis
@@ -44,15 +45,15 @@ ccl <- read_csv(here("data","s1_ccl_2021-4-2.csv"))
 
 ccl <- ccl[-c(1:2),] %>% # Delete the first two rows of Qualtrics meta-data
   separate(StartDate, c("date","time"), sep = " ") %>%  # Use the `separate` function to separate into two rows: date and time
-  mutate(date = ymd(date)) %>%  # Convert date to a stored date class
+  mutate(date = ymd(date)) %>%  # Convert `date` column from character to a stored date class
   filter(date >= as.Date("2021-03-12")) %>%  # Delete any rows before 3-12-2021 
   filter(Status != "Survey Preview") # Delete any survey previews (there was 1)
 
 # We recruited 200 people from a list of 5000 CCL members. After the wrangling above, it shows that 287 CCL members took the survey (this includes those who started it but did not complete it, their data was recorded)
 
 # Do some more wrangling to filter out participants who:
-# had progress less than 90%
-# took the survey in between 5 and 120 minutes (I want people who did not rush and also did it in 1 sitting)
+    # had progress less than 90%
+    # took the survey in between 5 and 120 minutes (I want people who did not rush and also did      it in 1 sitting)
 
 ccl <- ccl %>% 
   clean_names() %>% # Change variable names to `lower_snake_case`
@@ -67,10 +68,12 @@ ccl <- ccl %>%
 
 # Save clean data in `data` folder
 
-#write_csv(ccl, here("data","ccl_clean.csv"))
+# write_csv(ccl, here("data","ccl_clean.csv"))
 
 # I checked it out manually, all of the data looks good now.
 ```
+
+### Reverse coding
 
 Reverse code ranking items (`self_1`, `stereotype_1`, `robert_1` through `self_8`, `stereotype_8`, `robert_8`) using `mutate::case_when()` such that higher scores indicate greater importance of the reasons for supporting the Energy Innovation & Carbon Dividend Act:
 
@@ -341,14 +344,17 @@ ccl %>%
   kable_styling(bootstrap_options = "striped", full_width = FALSE, position = "left")
 ```
 
-1 multi-racial person identified as white and hispanic; 1 "other" identified as European. 
+1 'multi-racial' person identified as "white and hispanic"; 1 'other' identified as "European." 
 
 ### Age, household income, gender
 
+### Age
+Participants ranged from 18 to 84 years old (median age = 66, sd = 16.81 years). Three participants wrote in their own responses: "Older than you," "70 (Retired)," "over 60."
 ```{r, warning=FALSE,message=FALSE}
 ## AGE
 
-# First I created a subset of just the age variable so I could filter out the text responses and convert this variable to numeric
+# First I created a subset of just the age variable so I could filter out the text responses and convert this variable to numeric. After examining the variable, I saw the 3 text responses so I'm going to filter those out here:
+
 age_subset <- ccl %>% 
   select(age) %>% 
   filter(age != "70 (Retired)") %>% 
@@ -368,13 +374,15 @@ age_subset <- age_subset %>%
 #median(age_subset$age) # 66
 ```
 
-Participants ranged from 18 to 84 years old (median age = 66, sd = 16.81 years). Three participants wrote in their own responses: "Older than you," "70 (Retired)," "over 60."
 
+### Household income
+Median household income category was 5: $50,001 to $75,000.
+*Still need to figure out how to label tick marks on x-axis.
 
 ```{r, warning=FALSE, message=FALSE}
 ## HOUSEHOLD INCOME
 
-#First, change family income into a numeric variable
+#First, change family income into a factor variable
 
 ccl <- ccl %>% 
   mutate(fam_inc_num = case_when(
@@ -402,9 +410,9 @@ ggplot(data = ccl, aes(x = fam_inc_num)) +
 #min(ccl$fam_inc_num, na.rm = TRUE) # 1
 #max(ccl$fam_inc_num, na.rm = TRUE) # 7
 ```
-Median household income category was 5, 50,001 to 75,000.
 
 
+### Gender
 
 ```{r, warning=FALSE, message=FALSE}
 ## GENDER
@@ -419,15 +427,92 @@ ccl %>%
   kable_styling(bootstrap_options = "striped", full_width = FALSE, position = "left")
 ```
 
+### Political orientation
 
+```{r, warning=FALSE,message=FALSE}
+ccl %>% 
+  group_by(ideology) %>% 
+  summarise(count = n()) %>% 
+  kable(col.names = c("Political Ideology",
+                      "Counts")) %>% 
+  kable_styling(bootstrap_options = "striped", full_width = FALSE, position = "left")
+
+
+ccl <- ccl %>% 
+  mutate(pol_7_pt = case_when(
+    dem_strong_weak == "Strong Democrat" ~ 1,
+    dem_strong_weak == "Not Very Strong Democrat" ~ 2, 
+    closer_dem_rep == "Closer to Democratic Party" ~ 3,
+    closer_dem_rep == "Neither" ~ 4,
+    closer_dem_rep == "Closer to Republican Party" ~ 5, 
+    rep_strong_weak == "Not Very Strong Republican" ~ 6,
+    rep_strong_weak == "Strong Republican" ~ 7
+  ))
+
+#mean(ccl$pol_7_pt) #2.16
+
+ccl <- ccl %>% 
+  mutate(pol_7_pt_char = case_when(
+    dem_strong_weak == "Strong Democrat" ~ "Strong Democrat",
+    dem_strong_weak == "Not Very Strong Democrat" ~ "Not Very Strong Democrat", 
+    closer_dem_rep == "Closer to Democratic Party" ~ "Closer to Democratic Party",
+    closer_dem_rep == "Neither" ~ "Neither",
+    closer_dem_rep == "Closer to Republican Party" ~ "Closer to Republican Party", 
+    rep_strong_weak == "Not Very Strong Republican" ~ "Not Very Strong Republican",
+    rep_strong_weak == "Strong Republican" ~ "Strong Republican"
+  ))
+
+ccl %>% 
+  group_by(pol_7_pt) %>% 
+  summarise(count = n()) %>% 
+  kable(col.names = c("Political Party Identification",
+                      "Counts")) %>% 
+  kable_styling(bootstrap_options = "striped", full_width = FALSE, position = "left")
+```
 
 
 # Participants' answers on the similarity questions
 
-Check that they reveal expected levels of variance in the expected population: XX% enjoy relaxing vacations (vs. XX% adventurous), XX% enjoy scary movies, and XX% enjoy camping (vs. XX% staying in and watching TV shows).
+Check that they reveal expected levels of variance in the expected population: 27.78% enjoy relaxing vacations (vs. 72.22% adventurous), 17.90% enjoy scary movies, and 71.6% enjoy camping (vs. 27.16% staying in and watching TV shows).
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
+ccl %>% 
+  group_by(vacation) %>% 
+  summarize(count = n(),
+            percent = n()/162*100) %>% 
+   kable(col.names = c("Vacation Preference",
+                      "Counts",
+                      "Percent")) %>% 
+  kable_styling(bootstrap_options = "striped", full_width = FALSE, position = "left")
 
+ccl %>% 
+  group_by(scary_movie) %>% 
+  summarize(count = n(),
+            percent = n()/162*100) %>% 
+   kable(col.names = c("Enjoy Scary Movies?",
+                      "Counts",
+                      "Percent")) %>% 
+  kable_styling(bootstrap_options = "striped", full_width = FALSE, position = "left")
+
+ccl %>% 
+  group_by(outdoor_art) %>% 
+  summarize(count = n(),
+            percent = n()/162*100) %>% 
+   kable(col.names = c("Prefer Camping or Staying In and Watching TV Shows?",
+                      "Counts",
+                      "Percent")) %>% 
+  kable_styling(bootstrap_options = "striped", full_width = FALSE, position = "left")
+```
+# How many people in each condition?
+
+80 in the dissimilarity condition, 82 in the similarity condition.
+```{r, message=FALSE, warning=FALSE}
+ccl %>% 
+  group_by(group) %>% 
+  summarize(count = n()) %>% 
+  kable(col.names = c("Experimental Condition",
+                      "Counts")) %>% 
+  kable_styling(bootstrap_options = "striped", full_width = FALSE, position = "left")
 ```
 
 
@@ -436,6 +521,8 @@ For each reason to support the Energy Innovation & Carbon Dividend Act for each 
 
 ```{r, message=FALSE, warning=FALSE, results='hide'}
 # Create a new row called `id` which assigns each Ss an ID number based on the row they are in
+ccl <- ccl %>% 
+  mutate(id = row_number())
 
 # Filter for each participant one by one and calculate the regressions. Note what standardized beta is for each participant
 
@@ -497,10 +584,26 @@ A repeated measures ANOVA revealed a significant interaction of the similarity m
 
 # Create subset of data of interest to CCL
 
-```{r}
-# Select columns of interest to Brett
+Select the following two variables of interest to the CCL team, write and save as Excel.
 
-#Write_csv, send to Brett
+`why_advocacy`: "Why did you get involved with climate advocacy? What were the factors that led you to get involved with CCL?"
+`feedback_ccl`: "What feedback do you have about your experience volunteering with CCL? Is it a welcoming space for you as a volunteer?"
+
+```{r}
+# Select columns of interest to Brett: `why_advocacy` and `feedback_ccl`
+
+why_advocacy <- ccl %>% 
+  select(response_id, why_advocacy) %>% 
+  drop_na()
+
+feedback_ccl <- ccl %>% 
+  select(response_id, feedback_ccl) %>% 
+  drop_na()
+
+# Save subsets as new dataframes in the `data` subfolder
+
+write_xlsx(why_advocacy, here("data","why_advocacy.xlsx"))
+write_xlsx(feedback_ccl, here("data","feedback_ccl.xlsx"))
 
 ```
 
