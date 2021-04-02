@@ -1,0 +1,69 @@
+---
+title: 'Analyses for CCL: Climate Advocacy Experiences'
+author: "Michelle Shteyn Handy"
+date: "3/29/2021"
+output: 
+  html_document:
+    code_folding: hide 
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+#Attach packages
+library(tidyverse)
+library(here)
+```
+
+# Read in data and do some wrangling:
+Remove participants who:
+
+- Had less than 90% progress
+- Completed study in less than 3 minutes
+- Had more than 50% NAs on responses
+
+```{r}
+
+```
+
+Reverse code ranking items such that higher scores indicate greater importance of the reasons for supporting the Energy Innovation & Carbon Dividend Act:
+
+```{r}
+
+```
+
+
+# Descriptives
+
+```{r}
+
+```
+
+
+# T-tests
+
+Group participants into liberal or conservative bins. Then, conduct t-tests to see if liberals and conservatives significantly differ on which items they 
+
+```{r}
+# Use mutate, case_when to assign Ss into either liberal or conservative
+
+
+# Conduct 8 t-tests: one on each reason
+```
+
+
+# Text and sentiment analysis
+
+## Why did you get involved with climate advocacy? What were the factors that led you to get involved with CCL?
+
+
+## What feedback do you have about your experience volunteering with CCL? Is it a welcoming space for you as a volunteer?
+
+
+
+
+
+
+
+
+

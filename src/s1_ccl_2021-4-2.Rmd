@@ -1,0 +1,141 @@
+---
+title: 'Study 2: CCL Members'
+author: "Michelle Shteyn Handy"
+date: "3/12/2021"
+output: 
+  html_document:
+    code_folding: hide 
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+#Attach packages
+library(tidyverse)
+library(here)
+
+```
+
+# Conduct power analysis
+
+The present study employs a repeated measures design with a between-subjects factor (experimental condition: similarity vs. dissimilarity). Stereotyping and projection constructs were computed within-participant across items. Conduct power analysis for repeated measures ANOVA with a within-between interaction, assuming a small effect size (f = 0.1).
+
+```{r}
+
+```
+
+
+# Read in data and do some wrangling:
+Remove participants who:
+
+- Had less than 90% progress
+- Completed study in less than 3 minutes
+- Had more than 50% NAs on responses
+
+```{r}
+
+```
+
+Reverse code ranking items such that higher scores indicate greater importance of the reasons for supporting the Energy Innovation & Carbon Dividend Act:
+
+```{r}
+
+```
+
+
+
+# Descriptives
+
+```{r}
+
+```
+
+
+# Participants' answers on the similarity questions
+
+Check that they reveal expected levels of variance in the expected population: XX% enjoy relaxing vacations (vs. XX% adventurous), XX% enjoy scary movies, and XX% enjoy camping (vs. XX% staying in and watching TV shows).
+
+```{r}
+
+```
+
+
+# Calculate stereotyping and projection constructs
+For each reason to support the Energy Innovation & Carbon Dividend Act for each participant, a multiple regression predicting target responses with self-responses and typical business owner responses was computed. The mean standardized beta weights were then used as measures of projection (the self-response beta) and stereotyping (the typical businessman response beta)
+
+```{r, message=FALSE, warning=FALSE, results='hide'}
+# Create a new row called `id` which assigns each Ss an ID number based on the row they are in
+
+# Filter for each participant one by one and calculate the regressions. Note what standardized beta is for each participant
+
+# Create vectors (length of 200 ) of a) the projection standardized betas and b) the stereotyping standardized betas
+
+# Merge the vectors of the standardized betas for each participant into the original dataset
+
+
+# Projection: regressions between self-ratings and Robert ratings for each of the 8 reasons
+
+
+# Mean standardized beta for projection: 
+
+
+# Stereotyping: regressions between typical businessman-ratings and Robert ratings for each of the 8 reasons
+
+
+# Mean standardized beta for stereotyping: 
+
+```
+
+
+# Effects of similarity on projection and stereotyping
+
+Conduct repeated-measures ANOVA to examine the effect of the similarity manipulation and (time - is that the second factor because participants completed 2 measures to get their S and P scores?) on the projection and stereotyping measures. (from manuscript "the two-level factor of projection and stereotyping")
+
+Use [this resource](https://www.datanovia.com/en/lessons/repeated-measures-anova-in-r/#data-preparation-1)
+
+See example on two-way repeated measures ANOVA.
+
+First, verify that the data meets the required assumptions for two-way repeated measures ANOVA:
+
+```{r}
+
+```
+
+
+```{r}
+# Self-ratings, robert ratings, and businessman ratings are analogous to t1, t2, t3 in the example
+
+
+```
+
+Fix below so it will do the auto fill-in after broom::tidy
+
+A repeated measures ANOVA revealed a significant interaction of the similarity manipulation on the projection and stereotyping measures, *F*(1,95) = 8.6, *p* < .01. As shown in Figure 1, focused tests were consistent with the central prediction for Study 2: Projection was higher in the similarity than the dissimilarity condition (.42 vs .08), *t*(95) = 3.3, *p* < .01, whereas stereotyping was lower in the similarity condition than the dssimilaity condition, (.42 vs. .08), *t*(95) = 3.3, *p* < .01. The projection and stereotyping measures were significantly negatively correlated (*r* = -.55, *p* < .01).
+
+
+# Visualize the data
+
+```{r}
+#Calculate stereotyping and projection means by similarity condition
+#Use group_by, summarize
+
+
+#Look at Montecito analysis code to make ggplot bar charts of means by similarity condition
+```
+
+
+# Create subset of data of interest to CCL
+
+```{r}
+# Select columns of interest to Brett
+
+#Write_csv, send to Brett
+
+```
+
+
+
+
+
+
+
