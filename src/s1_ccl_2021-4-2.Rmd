@@ -1,7 +1,7 @@
 ---
-title: 'Study 2: CCL Members'
+title: 'Study 1: CCL Members'
 author: "Michelle Shteyn Handy"
-date: "3/12/2021"
+date: "4/02/2021"
 output: 
   html_document:
     code_folding: hide 
@@ -13,7 +13,8 @@ knitr::opts_chunk$set(echo = TRUE)
 #Attach packages
 library(tidyverse)
 library(here)
-
+library(lubridate)
+library(janitor)
 ```
 
 # Conduct power analysis
@@ -28,17 +29,279 @@ The present study employs a repeated measures design with a between-subjects fac
 # Read in data and do some wrangling:
 Remove participants who:
 
+- Took survey before 3-12-2021 (when Brett sent out the 1st recruitment message)
 - Had less than 90% progress
-- Completed study in less than 3 minutes
-- Had more than 50% NAs on responses
+- Completed study in less than 5 minutes or more than 120 minutes (I want people who did not rush and also did it in 1 sitting)
 
-```{r}
+```{r, warning=FALSE, message=FALSE}
 
+# Read in dataset from the "data" subfolder
+
+ccl <- read_csv(here("data","s1_ccl_2021-4-2.csv"))
+
+# Do some wrangling
+
+ccl <- ccl[-c(1:2),] %>% # Delete the first two rows of Qualtrics meta-data
+  separate(StartDate, c("date","time"), sep = " ") %>%  # Use the `separate` function to separate into two rows: date and time
+  mutate(date = ymd(date)) %>%  # Convert date to a stored date class
+  filter(date >= as.Date("2021-03-12")) %>%  # Delete any rows before 3-12-2021 
+  filter(Status != "Survey Preview") # Delete any survey previews (there was 1)
+
+# We recruited 200 people from a list of 5000 CCL members. After the wrangling above, it shows that 287 CCL members took the survey (this includes those who started it but did not complete it, their data was recorded)
+
+# Do some more wrangling to filter out participants who:
+# had progress less than 90%
+# took the survey in between 5 and 120 minutes (I want people who did not rush and also did it in 1 sitting)
+
+ccl <- ccl %>% 
+  clean_names() %>% # Change variable names to `lower_snake_case`
+  mutate(progress = as.numeric(progress), # Convert progress and duration variables into numeric class
+         duration_in_seconds = as.numeric(duration_in_seconds),
+         duration_in_minutes = duration_in_seconds/60) %>% 
+  filter(progress > 90) %>% # Filter for progress over 90% and between 5 and 120 minutes
+  filter(duration_in_minutes >= 5) %>% 
+  filter(duration_in_minutes <= 120)
+
+# Now we are left with 162 participants being included in analyses.
+
+# Save clean data in `data` folder
+
+#write_csv(ccl, here("data","ccl_clean.csv"))
+
+# I checked it out manually, all of the data looks good now.
 ```
 
-Reverse code ranking items such that higher scores indicate greater importance of the reasons for supporting the Energy Innovation & Carbon Dividend Act:
+Reverse code ranking items (`self_1`, `stereotype_1`, `robert_1` through `self_8`, `stereotype_8`, `robert_8`) using `mutate::case_when()` such that higher scores indicate greater importance of the reasons for supporting the Energy Innovation & Carbon Dividend Act:
 
-```{r}
+```{r, warning=FALSE, message=FALSE}
+
+# Reverse code self ranking items
+
+ccl <- ccl %>% 
+  mutate(self_1_r = case_when(
+                   self_1 == 1 ~ 8, 
+                   self_1 == 2 ~ 7, 
+                   self_1 == 3 ~ 6, 
+                   self_1 == 4 ~ 5, 
+                   self_1 == 5 ~ 4,
+                   self_1 == 6 ~ 3, 
+                   self_1 == 7 ~ 2,
+                   self_1 == 8 ~ 1),
+         self_2_r = case_when(
+                   self_2 == 1 ~ 8, 
+                   self_2 == 2 ~ 7, 
+                   self_2 == 3 ~ 6, 
+                   self_2 == 4 ~ 5, 
+                   self_2 == 5 ~ 4,
+                   self_2 == 6 ~ 3, 
+                   self_2 == 7 ~ 2,
+                   self_2 == 8 ~ 1),
+         self_3_r = case_when(
+                   self_3 == 1 ~ 8, 
+                   self_3 == 2 ~ 7, 
+                   self_3 == 3 ~ 6, 
+                   self_3 == 4 ~ 5, 
+                   self_3 == 5 ~ 4,
+                   self_3 == 6 ~ 3, 
+                   self_3 == 7 ~ 2,
+                   self_3 == 8 ~ 1),
+         self_4_r = case_when(
+                   self_4 == 1 ~ 8, 
+                   self_4 == 2 ~ 7, 
+                   self_4 == 3 ~ 6, 
+                   self_4 == 4 ~ 5, 
+                   self_4 == 5 ~ 4,
+                   self_4 == 6 ~ 3, 
+                   self_4 == 7 ~ 2,
+                   self_4 == 8 ~ 1),
+         self_5_r = case_when(
+                   self_5 == 1 ~ 8, 
+                   self_5 == 2 ~ 7, 
+                   self_5 == 3 ~ 6, 
+                   self_5 == 4 ~ 5, 
+                   self_5 == 5 ~ 4,
+                   self_5 == 6 ~ 3, 
+                   self_5 == 7 ~ 2,
+                   self_5 == 8 ~ 1),
+         self_6_r = case_when(
+                  self_6 == 1 ~ 8, 
+                   self_6 == 2 ~ 7, 
+                   self_6 == 3 ~ 6, 
+                   self_6 == 4 ~ 5, 
+                   self_6 == 5 ~ 4,
+                   self_6 == 6 ~ 3, 
+                   self_6 == 7 ~ 2,
+                   self_6 == 8 ~ 1),
+         self_7_r = case_when(
+                   self_7 == 1 ~ 8, 
+                   self_7 == 2 ~ 7, 
+                   self_7 == 3 ~ 6, 
+                   self_7 == 4 ~ 5, 
+                   self_7 == 5 ~ 4,
+                   self_7 == 6 ~ 3, 
+                   self_7 == 7 ~ 2,
+                   self_7 == 8 ~ 1),
+         self_8_r = case_when(
+                   self_8 == 1 ~ 8, 
+                   self_8 == 2 ~ 7, 
+                   self_8 == 3 ~ 6, 
+                   self_8 == 4 ~ 5, 
+                   self_8 == 5 ~ 4,
+                   self_8 == 6 ~ 3, 
+                   self_8 == 7 ~ 2,
+                   self_8 == 8 ~ 1))
+
+# Reverse code stereotype ranking items
+
+ccl <- ccl %>% 
+  mutate(stereotype_1_r = case_when(
+                   stereotype_1 == 1 ~ 8, 
+                   stereotype_1 == 2 ~ 7, 
+                   stereotype_1 == 3 ~ 6, 
+                   stereotype_1 == 4 ~ 5, 
+                   stereotype_1 == 5 ~ 4,
+                   stereotype_1 == 6 ~ 3, 
+                   stereotype_1 == 7 ~ 2,
+                   stereotype_1 == 8 ~ 1),
+         stereotype_2_r = case_when(
+                   stereotype_2 == 1 ~ 8, 
+                   stereotype_2 == 2 ~ 7, 
+                   stereotype_2 == 3 ~ 6, 
+                   stereotype_2 == 4 ~ 5, 
+                   stereotype_2 == 5 ~ 4,
+                   stereotype_2 == 6 ~ 3, 
+                   stereotype_2 == 7 ~ 2,
+                   stereotype_2 == 8 ~ 1),
+         stereotype_3_r = case_when(
+                   stereotype_3 == 1 ~ 8, 
+                   stereotype_3 == 2 ~ 7, 
+                   stereotype_3 == 3 ~ 6, 
+                   stereotype_3 == 4 ~ 5, 
+                   stereotype_3 == 5 ~ 4,
+                   stereotype_3 == 6 ~ 3, 
+                   stereotype_3 == 7 ~ 2,
+                   stereotype_3 == 8 ~ 1),
+         stereotype_4_r = case_when(
+                   stereotype_4 == 1 ~ 8, 
+                   stereotype_4 == 2 ~ 7, 
+                   stereotype_4 == 3 ~ 6, 
+                   stereotype_4 == 4 ~ 5, 
+                   stereotype_4 == 5 ~ 4,
+                   stereotype_4 == 6 ~ 3, 
+                   stereotype_4 == 7 ~ 2,
+                   stereotype_4 == 8 ~ 1),
+         stereotype_5_r = case_when(
+                   stereotype_5 == 1 ~ 8, 
+                   stereotype_5 == 2 ~ 7, 
+                   stereotype_5 == 3 ~ 6, 
+                   stereotype_5 == 4 ~ 5, 
+                   stereotype_5 == 5 ~ 4,
+                   stereotype_5 == 6 ~ 3, 
+                   stereotype_5 == 7 ~ 2,
+                   stereotype_5 == 8 ~ 1),
+         stereotype_6_r = case_when(
+                  stereotype_6 == 1 ~ 8, 
+                   stereotype_6 == 2 ~ 7, 
+                   stereotype_6 == 3 ~ 6, 
+                   stereotype_6 == 4 ~ 5, 
+                   stereotype_6 == 5 ~ 4,
+                   stereotype_6 == 6 ~ 3, 
+                   stereotype_6 == 7 ~ 2,
+                   stereotype_6 == 8 ~ 1),
+         stereotype_7_r = case_when(
+                   stereotype_7 == 1 ~ 8, 
+                   stereotype_7 == 2 ~ 7, 
+                   stereotype_7 == 3 ~ 6, 
+                   stereotype_7 == 4 ~ 5, 
+                   stereotype_7 == 5 ~ 4,
+                   stereotype_7 == 6 ~ 3, 
+                   stereotype_7 == 7 ~ 2,
+                   stereotype_7 == 8 ~ 1),
+         stereotype_8_r = case_when(
+                   stereotype_8 == 1 ~ 8, 
+                   stereotype_8 == 2 ~ 7, 
+                   stereotype_8 == 3 ~ 6, 
+                   stereotype_8 == 4 ~ 5, 
+                   stereotype_8 == 5 ~ 4,
+                   stereotype_8 == 6 ~ 3, 
+                   stereotype_8 == 7 ~ 2,
+                   stereotype_8 == 8 ~ 1))
+
+# Reverse code robert ranking items
+
+ccl <- ccl %>% 
+  mutate(robert_1_r = case_when(
+                   robert_1 == 1 ~ 8, 
+                   robert_1 == 2 ~ 7, 
+                   robert_1 == 3 ~ 6, 
+                   robert_1 == 4 ~ 5, 
+                   robert_1 == 5 ~ 4,
+                   robert_1 == 6 ~ 3, 
+                   robert_1 == 7 ~ 2,
+                   robert_1 == 8 ~ 1),
+         robert_2_r = case_when(
+                   robert_2 == 1 ~ 8, 
+                   robert_2 == 2 ~ 7, 
+                   robert_2 == 3 ~ 6, 
+                   robert_2 == 4 ~ 5, 
+                   robert_2 == 5 ~ 4,
+                   robert_2 == 6 ~ 3, 
+                   robert_2 == 7 ~ 2,
+                   robert_2 == 8 ~ 1),
+         robert_3_r = case_when(
+                   robert_3 == 1 ~ 8, 
+                   robert_3 == 2 ~ 7, 
+                   robert_3 == 3 ~ 6, 
+                   robert_3 == 4 ~ 5, 
+                   robert_3 == 5 ~ 4,
+                   robert_3 == 6 ~ 3, 
+                   robert_3 == 7 ~ 2,
+                   robert_3 == 8 ~ 1),
+         robert_4_r = case_when(
+                   robert_4 == 1 ~ 8, 
+                   robert_4 == 2 ~ 7, 
+                   robert_4 == 3 ~ 6, 
+                   robert_4 == 4 ~ 5, 
+                   robert_4 == 5 ~ 4,
+                   robert_4 == 6 ~ 3, 
+                   robert_4 == 7 ~ 2,
+                   robert_4 == 8 ~ 1),
+         robert_5_r = case_when(
+                   robert_5 == 1 ~ 8, 
+                   robert_5 == 2 ~ 7, 
+                   robert_5 == 3 ~ 6, 
+                   robert_5 == 4 ~ 5, 
+                   robert_5 == 5 ~ 4,
+                   robert_5 == 6 ~ 3, 
+                   robert_5 == 7 ~ 2,
+                   robert_5 == 8 ~ 1),
+         robert_6_r = case_when(
+                  robert_6 == 1 ~ 8, 
+                   robert_6 == 2 ~ 7, 
+                   robert_6 == 3 ~ 6, 
+                   robert_6 == 4 ~ 5, 
+                   robert_6 == 5 ~ 4,
+                   robert_6 == 6 ~ 3, 
+                   robert_6 == 7 ~ 2,
+                   robert_6 == 8 ~ 1),
+         robert_7_r = case_when(
+                   robert_7 == 1 ~ 8, 
+                   robert_7 == 2 ~ 7, 
+                   robert_7 == 3 ~ 6, 
+                   robert_7 == 4 ~ 5, 
+                   robert_7 == 5 ~ 4,
+                   robert_7 == 6 ~ 3, 
+                   robert_7 == 7 ~ 2,
+                   robert_7 == 8 ~ 1),
+         robert_8_r = case_when(
+                   robert_8 == 1 ~ 8, 
+                   robert_8 == 2 ~ 7, 
+                   robert_8 == 3 ~ 6, 
+                   robert_8 == 4 ~ 5, 
+                   robert_8 == 5 ~ 4,
+                   robert_8 == 6 ~ 3, 
+                   robert_8 == 7 ~ 2,
+                   robert_8 == 8 ~ 1))
 
 ```
 
