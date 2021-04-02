@@ -15,6 +15,7 @@ library(tidyverse)
 library(here)
 library(lubridate)
 library(janitor)
+library(kableExtra)
 ```
 
 # Conduct power analysis
@@ -309,9 +310,116 @@ ccl <- ccl %>%
 
 # Descriptives
 
-```{r}
+### Race / Ethnicity 
 
+```{r, warning=FALSE,message=FALSE}
+ccl %>% 
+  group_by(race) %>% 
+  summarize(count = n(),
+            percent = n()/162*100) %>% 
+  kable(col.names = c("Race/Ethnicity",
+                      "Counts",
+                      "Percent")) %>% 
+  kable_styling(bootstrap_options = "striped", full_width = FALSE, position = "left") # How do I get percent to stop at 2 decimal places?
 ```
+
+```{r, warning=FALSE,message=FALSE}
+# Multi-racial (open-ended)
+ccl %>% 
+  group_by(race_6_text) %>% 
+  summarise(count = n()) %>% 
+  kable(col.names = c("Race/Ethnicity: Multi-racial - Text",
+                      "Counts")) %>% 
+  kable_styling(bootstrap_options = "striped", full_width = FALSE, position = "left")
+
+# Other (open-ended)
+ccl %>% 
+  group_by(race_7_text) %>% 
+  summarise(count = n()) %>% 
+  kable(col.names = c("Race/Ethnicity: Other - Text",
+                      "Counts")) %>% 
+  kable_styling(bootstrap_options = "striped", full_width = FALSE, position = "left")
+```
+
+1 multi-racial person identified as white and hispanic; 1 "other" identified as European. 
+
+### Age, household income, gender
+
+```{r, warning=FALSE,message=FALSE}
+## AGE
+
+# First I created a subset of just the age variable so I could filter out the text responses and convert this variable to numeric
+age_subset <- ccl %>% 
+  select(age) %>% 
+  filter(age != "70 (Retired)") %>% 
+  filter(age != "Older than you") %>% 
+  filter(age != "over 60") 
+
+#Convert the age variable to numeric
+age_subset <- age_subset %>% 
+  mutate(age = as.numeric(age)) %>% 
+  drop_na()
+
+# Find descriptives
+#mean(age_subset$age) # 60.37
+#sd(age_subset$age) # 16.81
+#min(age_subset$age) # 18
+#max(age_subset$age) # 84
+#median(age_subset$age) # 66
+```
+
+Participants ranged from 18 to 84 years old (median age = 66, sd = 16.81 years). Three participants wrote in their own responses: "Older than you," "70 (Retired)," "over 60."
+
+
+```{r, warning=FALSE, message=FALSE}
+## HOUSEHOLD INCOME
+
+#First, change family income into a numeric variable
+
+ccl <- ccl %>% 
+  mutate(fam_inc_num = case_when(
+    fam_inc == "Under $15,000" ~ 1,
+    fam_inc == "$15,001 - $25,000" ~ 2,
+    fam_inc == "$25,001 - $35,000" ~ 3,
+    fam_inc == "$35,001 - $50,000" ~ 4, 
+    fam_inc == "$50,001 - $75,000" ~ 5,
+    fam_inc == "$75,001 - $100,000" ~ 6, 
+    fam_inc == "$100,001 - $150,000" ~ 7,
+    fam_inc == "$Over 150,000" ~ 8))
+
+#IDK why the labeling doesn't work
+
+ggplot(data = ccl, aes(x = fam_inc_num)) +
+  geom_histogram(stat = "count") +
+  theme(axis.text.x = element_text(angle = 90)) +
+  scale_x_discrete(breaks=c("1","2","3","4","5","6","7"),  
+                      labels=c("Under $15,000", "$15,001 - $25,000", "$25,001 - $35,000",
+                  "$35,001 - $50,000","$50,001 - $75,000","$75,001 - $100,000",
+                  "$100,001 - $150,000"))
+
+
+#median(ccl$fam_inc_num, na.rm = TRUE) # 5
+#min(ccl$fam_inc_num, na.rm = TRUE) # 1
+#max(ccl$fam_inc_num, na.rm = TRUE) # 7
+```
+Median household income category was 5, 50,001 to 75,000.
+
+
+
+```{r, warning=FALSE, message=FALSE}
+## GENDER
+
+ccl %>% 
+  group_by(gender) %>% 
+  summarise(count = n(),
+            percent = n()/(64+97+1)*100) %>% 
+  kable(col.names = c("Gender",
+                      "Counts",
+                      "Percent")) %>% 
+  kable_styling(bootstrap_options = "striped", full_width = FALSE, position = "left")
+```
+
+
 
 
 # Participants' answers on the similarity questions

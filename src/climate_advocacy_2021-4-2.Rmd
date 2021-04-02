@@ -56,9 +56,24 @@ Group participants into liberal or conservative bins. Then, conduct t-tests to s
 
 ## Why did you get involved with climate advocacy? What were the factors that led you to get involved with CCL?
 
+```{r}
+
+
+cca_news_themes <- commercial_clean_0 %>% 
+  select(ResponseId, localccathemes) %>% 
+  drop_na()
+
+#Save new dataframe:
+write_xlsx(cca_news_themes, here("data","cca_news_themes.xlsx")) 
+```
+
+
 
 ## What feedback do you have about your experience volunteering with CCL? Is it a welcoming space for you as a volunteer?
 
+```{r}
+
+```
 
 
 
