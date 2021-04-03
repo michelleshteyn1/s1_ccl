@@ -82,7 +82,7 @@ Reverse code ranking items (`self_1`, `stereotype_1`, `robert_1` through `self_8
 # Reverse code self ranking items
 
 ccl <- ccl %>% 
-  mutate(self_1_r = case_when(
+  mutate(self_r_1 = case_when(
                    self_1 == 1 ~ 8, 
                    self_1 == 2 ~ 7, 
                    self_1 == 3 ~ 6, 
@@ -91,7 +91,7 @@ ccl <- ccl %>%
                    self_1 == 6 ~ 3, 
                    self_1 == 7 ~ 2,
                    self_1 == 8 ~ 1),
-         self_2_r = case_when(
+         self_r_2 = case_when(
                    self_2 == 1 ~ 8, 
                    self_2 == 2 ~ 7, 
                    self_2 == 3 ~ 6, 
@@ -100,7 +100,7 @@ ccl <- ccl %>%
                    self_2 == 6 ~ 3, 
                    self_2 == 7 ~ 2,
                    self_2 == 8 ~ 1),
-         self_3_r = case_when(
+         self_r_3 = case_when(
                    self_3 == 1 ~ 8, 
                    self_3 == 2 ~ 7, 
                    self_3 == 3 ~ 6, 
@@ -109,7 +109,7 @@ ccl <- ccl %>%
                    self_3 == 6 ~ 3, 
                    self_3 == 7 ~ 2,
                    self_3 == 8 ~ 1),
-         self_4_r = case_when(
+         self_r_4 = case_when(
                    self_4 == 1 ~ 8, 
                    self_4 == 2 ~ 7, 
                    self_4 == 3 ~ 6, 
@@ -118,7 +118,7 @@ ccl <- ccl %>%
                    self_4 == 6 ~ 3, 
                    self_4 == 7 ~ 2,
                    self_4 == 8 ~ 1),
-         self_5_r = case_when(
+         self_r_5 = case_when(
                    self_5 == 1 ~ 8, 
                    self_5 == 2 ~ 7, 
                    self_5 == 3 ~ 6, 
@@ -127,7 +127,7 @@ ccl <- ccl %>%
                    self_5 == 6 ~ 3, 
                    self_5 == 7 ~ 2,
                    self_5 == 8 ~ 1),
-         self_6_r = case_when(
+         self_r_6 = case_when(
                   self_6 == 1 ~ 8, 
                    self_6 == 2 ~ 7, 
                    self_6 == 3 ~ 6, 
@@ -136,7 +136,7 @@ ccl <- ccl %>%
                    self_6 == 6 ~ 3, 
                    self_6 == 7 ~ 2,
                    self_6 == 8 ~ 1),
-         self_7_r = case_when(
+         self_r_7 = case_when(
                    self_7 == 1 ~ 8, 
                    self_7 == 2 ~ 7, 
                    self_7 == 3 ~ 6, 
@@ -145,7 +145,7 @@ ccl <- ccl %>%
                    self_7 == 6 ~ 3, 
                    self_7 == 7 ~ 2,
                    self_7 == 8 ~ 1),
-         self_8_r = case_when(
+         self_r_8 = case_when(
                    self_8 == 1 ~ 8, 
                    self_8 == 2 ~ 7, 
                    self_8 == 3 ~ 6, 
@@ -158,7 +158,7 @@ ccl <- ccl %>%
 # Reverse code stereotype ranking items
 
 ccl <- ccl %>% 
-  mutate(stereotype_1_r = case_when(
+  mutate(stereotype_r_1 = case_when(
                    stereotype_1 == 1 ~ 8, 
                    stereotype_1 == 2 ~ 7, 
                    stereotype_1 == 3 ~ 6, 
@@ -167,7 +167,7 @@ ccl <- ccl %>%
                    stereotype_1 == 6 ~ 3, 
                    stereotype_1 == 7 ~ 2,
                    stereotype_1 == 8 ~ 1),
-         stereotype_2_r = case_when(
+         stereotype_r_2 = case_when(
                    stereotype_2 == 1 ~ 8, 
                    stereotype_2 == 2 ~ 7, 
                    stereotype_2 == 3 ~ 6, 
@@ -176,7 +176,7 @@ ccl <- ccl %>%
                    stereotype_2 == 6 ~ 3, 
                    stereotype_2 == 7 ~ 2,
                    stereotype_2 == 8 ~ 1),
-         stereotype_3_r = case_when(
+         stereotype_r_3 = case_when(
                    stereotype_3 == 1 ~ 8, 
                    stereotype_3 == 2 ~ 7, 
                    stereotype_3 == 3 ~ 6, 
@@ -185,7 +185,7 @@ ccl <- ccl %>%
                    stereotype_3 == 6 ~ 3, 
                    stereotype_3 == 7 ~ 2,
                    stereotype_3 == 8 ~ 1),
-         stereotype_4_r = case_when(
+         stereotype_r_4 = case_when(
                    stereotype_4 == 1 ~ 8, 
                    stereotype_4 == 2 ~ 7, 
                    stereotype_4 == 3 ~ 6, 
@@ -194,7 +194,7 @@ ccl <- ccl %>%
                    stereotype_4 == 6 ~ 3, 
                    stereotype_4 == 7 ~ 2,
                    stereotype_4 == 8 ~ 1),
-         stereotype_5_r = case_when(
+         stereotype_r_5 = case_when(
                    stereotype_5 == 1 ~ 8, 
                    stereotype_5 == 2 ~ 7, 
                    stereotype_5 == 3 ~ 6, 
@@ -203,7 +203,7 @@ ccl <- ccl %>%
                    stereotype_5 == 6 ~ 3, 
                    stereotype_5 == 7 ~ 2,
                    stereotype_5 == 8 ~ 1),
-         stereotype_6_r = case_when(
+         stereotype_r_6 = case_when(
                   stereotype_6 == 1 ~ 8, 
                    stereotype_6 == 2 ~ 7, 
                    stereotype_6 == 3 ~ 6, 
@@ -212,7 +212,7 @@ ccl <- ccl %>%
                    stereotype_6 == 6 ~ 3, 
                    stereotype_6 == 7 ~ 2,
                    stereotype_6 == 8 ~ 1),
-         stereotype_7_r = case_when(
+         stereotype_r_7 = case_when(
                    stereotype_7 == 1 ~ 8, 
                    stereotype_7 == 2 ~ 7, 
                    stereotype_7 == 3 ~ 6, 
@@ -221,7 +221,7 @@ ccl <- ccl %>%
                    stereotype_7 == 6 ~ 3, 
                    stereotype_7 == 7 ~ 2,
                    stereotype_7 == 8 ~ 1),
-         stereotype_8_r = case_when(
+         stereotype_r_8 = case_when(
                    stereotype_8 == 1 ~ 8, 
                    stereotype_8 == 2 ~ 7, 
                    stereotype_8 == 3 ~ 6, 
@@ -234,7 +234,7 @@ ccl <- ccl %>%
 # Reverse code robert ranking items
 
 ccl <- ccl %>% 
-  mutate(robert_1_r = case_when(
+  mutate(robert_r_1 = case_when(
                    robert_1 == 1 ~ 8, 
                    robert_1 == 2 ~ 7, 
                    robert_1 == 3 ~ 6, 
@@ -243,7 +243,7 @@ ccl <- ccl %>%
                    robert_1 == 6 ~ 3, 
                    robert_1 == 7 ~ 2,
                    robert_1 == 8 ~ 1),
-         robert_2_r = case_when(
+         robert_r_2 = case_when(
                    robert_2 == 1 ~ 8, 
                    robert_2 == 2 ~ 7, 
                    robert_2 == 3 ~ 6, 
@@ -252,7 +252,7 @@ ccl <- ccl %>%
                    robert_2 == 6 ~ 3, 
                    robert_2 == 7 ~ 2,
                    robert_2 == 8 ~ 1),
-         robert_3_r = case_when(
+         robert_r_3 = case_when(
                    robert_3 == 1 ~ 8, 
                    robert_3 == 2 ~ 7, 
                    robert_3 == 3 ~ 6, 
@@ -261,7 +261,7 @@ ccl <- ccl %>%
                    robert_3 == 6 ~ 3, 
                    robert_3 == 7 ~ 2,
                    robert_3 == 8 ~ 1),
-         robert_4_r = case_when(
+         robert_r_4 = case_when(
                    robert_4 == 1 ~ 8, 
                    robert_4 == 2 ~ 7, 
                    robert_4 == 3 ~ 6, 
@@ -270,7 +270,7 @@ ccl <- ccl %>%
                    robert_4 == 6 ~ 3, 
                    robert_4 == 7 ~ 2,
                    robert_4 == 8 ~ 1),
-         robert_5_r = case_when(
+         robert_r_5 = case_when(
                    robert_5 == 1 ~ 8, 
                    robert_5 == 2 ~ 7, 
                    robert_5 == 3 ~ 6, 
@@ -279,7 +279,7 @@ ccl <- ccl %>%
                    robert_5 == 6 ~ 3, 
                    robert_5 == 7 ~ 2,
                    robert_5 == 8 ~ 1),
-         robert_6_r = case_when(
+         robert_r_6 = case_when(
                   robert_6 == 1 ~ 8, 
                    robert_6 == 2 ~ 7, 
                    robert_6 == 3 ~ 6, 
@@ -288,7 +288,7 @@ ccl <- ccl %>%
                    robert_6 == 6 ~ 3, 
                    robert_6 == 7 ~ 2,
                    robert_6 == 8 ~ 1),
-         robert_7_r = case_when(
+         robert_r_7 = case_when(
                    robert_7 == 1 ~ 8, 
                    robert_7 == 2 ~ 7, 
                    robert_7 == 3 ~ 6, 
@@ -297,7 +297,7 @@ ccl <- ccl %>%
                    robert_7 == 6 ~ 3, 
                    robert_7 == 7 ~ 2,
                    robert_7 == 8 ~ 1),
-         robert_8_r = case_when(
+         robert_r_8 = case_when(
                    robert_8 == 1 ~ 8, 
                    robert_8 == 2 ~ 7, 
                    robert_8 == 3 ~ 6, 
@@ -519,17 +519,33 @@ ccl %>%
 # Calculate stereotyping and projection constructs
 For each reason to support the Energy Innovation & Carbon Dividend Act for each participant, a multiple regression predicting target responses with self-responses and typical business owner responses was computed. The mean standardized beta weights were then used as measures of projection (the self-response beta) and stereotyping (the typical businessman response beta)
 
+
+https://stackoverflow.com/questions/27952653/how-to-loop-repeat-a-linear-regression-in-r
+
 ```{r, message=FALSE, warning=FALSE, results='hide'}
 # Create a new row called `id` which assigns each Ss an ID number based on the row they are in
 ccl <- ccl %>% 
   mutate(id = row_number())
 
-# Filter for each participant one by one and calculate the regressions. Note what standardized beta is for each participant
+# Use `pivot_longer()` to make the data tidy and have variables for: reason number, self rankings, group rankings, robert rankings
+# How do I do pivot longer for 3 variables??
+ccl_long <- ccl %>% 
+  pivot_longer(
+    cols = starts_with("self_r_"),
+    names_to = "reason_number",
+    names_pattern = "self_r_?(.*)",
+    values_to = "self_rankings"
+  ) 
 
-# Create vectors (length of 200 ) of a) the projection standardized betas and b) the stereotyping standardized betas
+
+
+
+# Create vectors (length of 200 ) of a) the projection standardized betas and b) the stereotyping standardized betas (this is too brute force - figure out how to do it on a loop)
 
 # Merge the vectors of the standardized betas for each participant into the original dataset
 
+#Then, bind year_0 as a new variable into the original dataframe.
+fish$year_0 <- year_0
 
 # Projection: regressions between self-ratings and Robert ratings for each of the 8 reasons
 
