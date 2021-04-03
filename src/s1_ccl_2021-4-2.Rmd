@@ -595,6 +595,8 @@ A repeated measures ANOVA revealed a significant interaction of the similarity m
 
 
 #Look at Montecito analysis code to make ggplot bar charts of means by similarity condition
+
+# Is a beeswarm plot a good way to visualize this?
 ```
 
 
