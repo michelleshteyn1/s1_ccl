@@ -17,6 +17,7 @@ library(lubridate)
 library(janitor)
 library(kableExtra)
 library(writexl)
+
 ```
 
 # Conduct power analysis
@@ -528,26 +529,7 @@ https://stackoverflow.com/questions/27952653/how-to-loop-repeat-a-linear-regress
 ccl <- ccl %>% 
   mutate(id = row_number())
 
-# Use `pivot_longer()` to make the data tidy and have variables for: reason_num, self_rank, stereotype_rank, robert_rank
-# How do I do pivot longer for 3 variables??
-#ccl_long <- ccl %>% 
-#  pivot_longer(
-#    cols = starts_with("self_r_"),
-#    names_to = "reason_num",
-#    names_pattern = "self_r_?(.*)",
-#    values_to = "self_rankings"
-#  ) 
-
-#This solution doesn't work
-#ccl_long <- ccl %>% 
- # pivot_longer(
-#    cols = self_r_1:robert_r_8,
-#    names_to = "reason_number",
- #   names_pattern = "self_r_?(.*)",
-#    values_to = "rankings"
-#  )
-
-
+# Use `pivot_longer()` to make the data tidy and have variables for: reason_number, self_rankings, stereotype_rankings, robert_rankings
 ccl_long <- ccl %>% 
   pivot_longer(
     cols = s1:r8,
@@ -556,17 +538,53 @@ ccl_long <- ccl %>%
     values_drop_na = TRUE
   )
 
+#Create subset with just the variables I'm interested in
 stereotyping_projection_subset<-ccl_long %>% 
-  select(id,reason_number,s,g,r)
+  select(id,reason_number,group,s,g,r) %>% 
+  rename(self_rankings = s,
+         stereotype_rankings = g,
+         robert_rankings = r) %>% 
+  add_column(projection = 0) %>% # Adding two new cols. to get ready for regressions on a loop
+  add_column(stereotyping = 0)
 
 
-#This is the closest example to my data I think
-anscombe %>%
- pivot_longer(everything(),
-   names_to = c(".value", "set"),
-   names_pattern = "(.)(.)"
- )
+#Calculate the multiple regressions for every participant 
 
+# For loop will iterate through each row of the dataframe
+# The scope of every action within the for loop is limited to that single iteration, so no need to manually filter data and calculate regression for each participant
+for (i in 1:nrow(stereotyping_projection_subset)) {
+  
+  # This creates a dataframe of one row, the row that the for loop is currently on
+  id<-stereotyping_projection_subset %>% 
+    filter(id==stereotyping_projection_subset[[i, 1]])
+  
+  # This runs the MLR using the single row created above as the dataframe
+  temp_lm <- lm(robert_rankings ~ self_rankings + stereotype_rankings, data = id)
+  
+  # This converts the linear model object created above into an easy to read and easy to access object. This essentially cleans up the output.
+  tidy_temp_lm<-broom::tidy(temp_lm)
+  
+  # This creates a variable to store the beta coefficient for self ranking predicting robert ranking for this single row
+  temp_self_rankings<-tidy_temp_lm[2, 2]
+  
+  # This creates a variable to store the beta coefficient for stereotype ranking predicting robert ranking for this single row
+  temp_stereotype_rankings<-tidy_temp_lm[3,2]
+  
+  # The last two lines store the variables created above in columns in the original dataframe in the row that the for loop is currently on
+  stereotyping_projection_subset[i, 7]<-temp_self_rankings
+  stereotyping_projection_subset[i, 8]<-temp_stereotype_rankings
+}
+
+# Example of what is happening on each row in the for loop
+# Example uses row 2
+
+#id2<-stereotyping_projection_subset %>% 
+#  filter(id==2)
+#lm2 <- lm(robert_rankings ~ self_rankings + stereotype_rankings, data = id2)
+#lm2
+#Coefficients:
+#       (Intercept)        self_rankings  stereotype_rankings  
+#            -2.2500               0.4853               1.0147  
 
 
 # Create vectors (length of 200 ) of a) the projection standardized betas and b) the stereotyping standardized betas (this is too brute force - figure out how to do it on a loop)
