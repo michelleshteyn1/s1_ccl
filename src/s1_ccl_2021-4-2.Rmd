@@ -17,6 +17,9 @@ library(lubridate)
 library(janitor)
 library(kableExtra)
 library(writexl)
+library(ggpubr)
+library(rstatix)
+library(ez)
 
 ```
 
@@ -24,6 +27,7 @@ library(writexl)
 
 The present study employs a repeated measures design with a between-subjects factor (experimental condition: similarity vs. dissimilarity). Stereotyping and projection constructs were computed within-participant across items. Conduct power analysis for repeated measures ANOVA with a within-between interaction, assuming a small effect size (f = 0.1).
 
+*This was already done in GPower, figure out how to do in R so it's all in one place.
 ```{r}
 
 ```
@@ -54,7 +58,7 @@ ccl <- ccl[-c(1:2),] %>% # Delete the first two rows of Qualtrics meta-data
 
 # Do some more wrangling to filter out participants who:
     # had progress less than 90%
-    # took the survey in between 5 and 120 minutes (I want people who did not rush and also did      it in 1 sitting)
+    # took the survey in between 5 and 120 minutes 
 
 ccl <- ccl %>% 
   clean_names() %>% # Change variable names to `lower_snake_case`
@@ -77,6 +81,8 @@ ccl <- ccl %>%
 ### Reverse coding
 
 Reverse code ranking items (`self_1`, `stereotype_1`, `robert_1` through `self_8`, `stereotype_8`, `robert_8`) using `mutate::case_when()` such that higher scores indicate greater importance of the reasons for supporting the Energy Innovation & Carbon Dividend Act:
+
+*Note*: Reverse coding doesn't actually matter for calculation of the stereotyping and projection constructs, but will be useful when I run the tests Brett is interested in: t-tests on each item to test if reason rankings significantly differ for Dems/Reps.
 
 ```{r, warning=FALSE, message=FALSE}
 
@@ -316,6 +322,7 @@ ccl <- ccl %>%
 
 ### Race / Ethnicity 
 
+1 'multi-racial' person identified as "white and hispanic"; 1 'other' identified as "European." 
 ```{r, warning=FALSE,message=FALSE}
 ccl %>% 
   group_by(race) %>% 
@@ -345,12 +352,10 @@ ccl %>%
   kable_styling(bootstrap_options = "striped", full_width = FALSE, position = "left")
 ```
 
-1 'multi-racial' person identified as "white and hispanic"; 1 'other' identified as "European." 
-
 ### Age, household income, gender
 
 ### Age
-Participants ranged from 18 to 84 years old (median age = 66, sd = 16.81 years). Three participants wrote in their own responses: "Older than you," "70 (Retired)," "over 60."
+Participants ranged from 18 to 84 years old (median = 66, *SD* = 16.81 years). Three participants wrote in their own responses: "Older than you," "70 (Retired)," "over 60."
 ```{r, warning=FALSE,message=FALSE}
 ## AGE
 
@@ -377,8 +382,10 @@ age_subset <- age_subset %>%
 
 
 ### Household income
+
 Median household income category was 5: $50,001 to $75,000.
-*Still need to figure out how to label tick marks on x-axis.
+
+*Figure out how to label tick marks on x-axis.
 
 ```{r, warning=FALSE, message=FALSE}
 ## HOUSEHOLD INCOME
@@ -474,7 +481,7 @@ ccl %>%
 
 # Participants' answers on the similarity questions
 
-Check that they reveal expected levels of variance in the expected population: 27.78% enjoy relaxing vacations (vs. 72.22% adventurous), 17.90% enjoy scary movies, and 71.6% enjoy camping (vs. 27.16% staying in and watching TV shows).
+Their responses reveal expected levels of variance in the population: 27.78% enjoy relaxing vacations (vs. 72.22% adventurous), 17.90% enjoy scary movies, and 71.6% enjoy camping (vs. 27.16% staying in and watching TV shows).
 
 ```{r, message=FALSE, warning=FALSE}
 ccl %>% 
@@ -504,7 +511,7 @@ ccl %>%
                       "Percent")) %>% 
   kable_styling(bootstrap_options = "striped", full_width = FALSE, position = "left")
 ```
-# How many people in each condition?
+# Counts in each experimental condition
 
 80 in the dissimilarity condition, 82 in the similarity condition.
 ```{r, message=FALSE, warning=FALSE}
@@ -518,13 +525,14 @@ ccl %>%
 
 
 # Calculate stereotyping and projection constructs
-For each participant, a multiple regression predicting target responses with self-responses and typical business owner responses was computed (across the 8 reasons to support the Energy Innovation & Carbon Dividend Act). The mean standardized beta weights were then used as measures of projection (the self-response beta) and stereotyping (the typical businessman response beta)
 
-Need to use `pivot_longer()` to manipulate the data into the correct format for analysis: `reason_number` (1-8), `self_rankings`, `stereotype_rankings`, and `robert_rankings` become new variables. Use [this resource](https://tidyr.tidyverse.org/reference/pivot_longer.html) for `pivot_longer()`: anscombe example, multiple observations per row.
+For each participant, a multiple regression predicting target responses with self-responses and typical business owner responses was computed (across the 8 reasons to support the Energy Innovation & Carbon Dividend Act). The standardized beta weights were then used as measures of projection (the self-response beta) and stereotyping (the typical businessman response beta).  
 
-https://stackoverflow.com/questions/27952653/how-to-loop-repeat-a-linear-regression-in-r
+- Need to use `pivot_longer()` to manipulate the data into the correct format for analysis: `reason_number` (1-8), `self_rankings`, `stereotype_rankings`, and `robert_rankings` become new variables. Use [this resource](https://tidyr.tidyverse.org/reference/pivot_longer.html) for `pivot_longer()`: anscombe example, multiple observations per row.  
+- Run MLR for each participant to predict Robert rankings from self- and group- rankings.Then add the standardized beta weights into new columns for projection and stereotyping. To automate these calculations (otherwise I would have to filter for one participant at a time), run the regressions on a loop. [Resource for running regressions on a loop.](https://stackoverflow.com/questions/27952653/how-to-loop-repeat-a-linear-regression-in-r)
 
 ```{r, message=FALSE, warning=FALSE, results='hide'}
+
 # Create a new row called `id` which assigns each Ss an ID number based on the row they are in
 ccl <- ccl %>% 
   mutate(id = row_number())
@@ -586,73 +594,201 @@ for (i in 1:nrow(stereotyping_projection_subset)) {
 #       (Intercept)        self_rankings  stereotype_rankings  
 #            -2.2500               0.4853               1.0147  
 
-
-# Create vectors (length of 200 ) of a) the projection standardized betas and b) the stereotyping standardized betas (this is too brute force - figure out how to do it on a loop)
-
-# Merge the vectors of the standardized betas for each participant into the original dataset
-
-#Then, bind year_0 as a new variable into the original dataframe.
-fish$year_0 <- year_0
-
-# Projection: regressions between self-ratings and Robert ratings for each of the 8 reasons
-
-
-# Mean standardized beta for projection: 
-
-
-# Stereotyping: regressions between typical businessman-ratings and Robert ratings for each of the 8 reasons
-
-
-# Mean standardized beta for stereotyping: 
-
 ```
 
 
 # Effects of similarity on projection and stereotyping
 
-Conduct repeated-measures ANOVA to examine the effect of the similarity manipulation and (time - is that the second factor because participants completed 2 measures to get their S and P scores?) on the projection and stereotyping measures. (from manuscript "the two-level factor of projection and stereotyping")
+Conduct repeated-measures ANOVA to examine the effect of similarity condition (similar vs. different) and the two-level factor of projection and stereotyping on participants' stereotyping and projection scores. 
 
-Use [this resource](https://www.datanovia.com/en/lessons/repeated-measures-anova-in-r/#data-preparation-1)
+[Resource on two-way repeated measures ANOVA.](https://www.datanovia.com/en/lessons/repeated-measures-anova-in-r/#data-preparation-1)
 
-See example on two-way repeated measures ANOVA.
+## Data preparation
 
-First, verify that the data meets the required assumptions for two-way repeated measures ANOVA:
+The projection and stereotyping scores were calculated from participants' rankings during the study. The question is to investigate if experimental condition can induce significant differences of projection and stereotyping scores over rankings during the study. In other terms, we wish to know if there is a significant interaction between `group` and `ranking` on the projection and stereotyping score.
+
+Load and show on random row by treatment group:
+```{r, warning=FALSE, message=FALSE}
+#Create a subset of only the variables I need for this analysis: id, group, projection scores, and stereotyping scores
+#Then rename exp_condition to group so it's more intuitive
+
+anova_data <- stereotyping_projection_subset %>% 
+  select(id, group, projection, stereotyping) %>% 
+  rename(exp_condition = group)
+
+# Wide format
+set.seed(123)
+anova_data %>% 
+  sample_n_by(exp_condition, size = 1)
+
+```
 
 ```{r}
+# Gather the columns projection and stereotyping into long format.
+# Convert id and group into factor variables
+anova_data2 <- anova_data %>% 
+  gather(key = "ranking", value = "score", projection, stereotyping) %>% 
+  convert_as_factor(id, ranking) %>% 
+  unique() %>% 
+  mutate(exp_condition = as_factor(exp_condition))
+
+# Inspect some random rows of the data by groups
+set.seed(123)
+anova_data2 %>% 
+  sample_n_by(exp_condition, ranking, size = 1)
+```
+
+## Summary statistics
+
+Group the data by `exp_condition` and `ranking`, and then compute some summary statistics of the `score` variable: mean and sd. 
+
+```{r, warning=FALSE, message=FALSE}
+anova_data2 %>% 
+  group_by(exp_condition, ranking) %>% 
+  get_summary_stats(score, type = "mean_sd")
+
+```
+
+## Visualization
+
+Create box plots of the score colored by experimental condition:
+
+```{r, warning=FALSE, message=FALSE}
+bxp <- ggboxplot(
+  anova_data2, x = "ranking", y = "score",
+  color = "exp_condition", palette = "jco"
+) +
+  labs(y = "Mean standardized beta") +
+  theme(axis.title.x = element_blank())
+
+bxp
+```
+
+
+## Check Assumptions
+
+Verify that the data meets the required assumptions for two-way repeated measures ANOVA:  
+
+- No significant outliers
+- Normality
+- Assumption of sphericity
+
+### Outliers
+
+```{r, warning=FALSE, message=FALSE}
+anova_data2 %>% 
+  group_by(exp_condition, ranking) %>% 
+  identify_outliers(score)
+
+```
+There are 6 extreme outliers: id 50, 65, 106, 5, 35, 119
+*Remove from dataset?
+
+
+### Normality assumption
+
+Compute Shapiro-Wilk test for each combination of factor levels:
+
+```{r, warning=FALSE, message=FALSE}
+anova_data2 %>% 
+  group_by(exp_condition, ranking) %>% 
+  shapiro_test(score)
+```
+This shows that the scores for projection and stereotyping were NOT normally distributed at each ranking point (*p* < .05)
+
+Create QQ plot for each cell of design:
+
+```{r, warning=FALSE, message=FALSE}
+ggqqplot(anova_data2, "score", ggtheme = theme_bw())+
+  facet_grid(ranking~exp_condition, labeller = "label_both")
+```
+
+From the plot above, as all the points fall approximately along the reference line, we can assume normality.
+
+
+## Compute the Two-Way ANOVA:
+
+```{r, message=FALSE, warning=FALSE}
+#res.aov <- anova_test(
+#  data = anova_data2, dv = score, wid = id,
+#  within = c(exp_condition, ranking)
+#)
+
+# I got an error, let me try to omit NAs from my data
+#anova_data2 <- anova_data2 %>% 
+#  drop_na()
+
+#Still didn't work
+
+#Two other tutorials said to do it the below ways and it worked. Although now it says ANOVA table (type II tests) rather than (type III tests like in the original tutorial)
+
+#Solution from this tutorial: https://stats.idre.ucla.edu/r/seminars/repeated-measures-analysis-with-r/
+demo1.aov <- aov(score ~ exp_condition * ranking + Error(id), data = anova_data2)
+#summary(demo1.aov)
+
+tidy_aov <- broom::tidy(demo1.aov) %>% 
+    kable(col.names = c("Stratum",
+                        "Factor",
+                        "df",
+                        "Sum of Squares",
+                        "Mean Square",
+                        "F Statistic",
+                        "P Value")) %>% 
+  kable_styling(bootstrap_options = "striped", full_width = FALSE, position = "left")
+
+
+tidy_aov
+
+#Solution from stack overflow
+#res.aov <- anova_test(
+#  data = anova_data2, 
+#  score ~ exp_condition * ranking,
+#  wid = id
+#)
+#res.aov
+
+#What's the difference between doing it the two ways above?
+
+
+par(cex = .6)
+
+with(anova_data2, interaction.plot(ranking, exp_condition, score,
+  ylim = c(-1, 1), lty= c(1, 12), lwd = 3,
+  ylab = "mean standardized beta", xlab = "stereotyping-projection factor", trace.label = "experimental condition"))
+```
+
+The between groups test indicates that the variable `exp_condition` is not significant, consequently in the graph we see that the lines for the two groups are overlapping. The within subject test indicate that there is significant ranking effect, in other words, the groups change in score over time. In the graph we see that the groups have lines that have a gradual positive slope. Also, since the lines are parallel, we are not surprised that the interaction between time and group is not significant.
+
+
+```{r, warning=FALSE, message=FALSE}
+anova_data2 %>% 
+  group_by(exp_condition, ranking) %>% 
+  summarize(mean_score = mean(score, na.rm = TRUE)) %>% 
+  kable(col.names = c("Experimental Condition",
+                        "Repeated-Measures Factor",
+                        "Mean Standardized Beta")) %>% 
+  kable_styling(bootstrap_options = "striped", full_width = FALSE, position = "left")
+
+
+grouped_data <- anova_data2 %>% 
+  group_by(exp_condition, ranking) %>% 
+  summarize(mean_score = mean(score, na.rm = TRUE))
+
+ggplot(data=grouped_data, aes(x = ranking, y = mean_score, fill = exp_condition))+
+  geom_bar(stat = "identity", position = "dodge")+
+  theme(axis.title.x = element_blank())
 
 ```
 
 
-```{r}
-# Self-ratings, robert ratings, and businessman ratings are analogous to t1, t2, t3 in the example
 
 
-```
+### Create subset of open-ended data of interest to CCL
 
-Fix below so it will do the auto fill-in after broom::tidy
+Select the following two variables of interest to the CCL team, write and save as Excel.  
 
-A repeated measures ANOVA revealed a significant interaction of the similarity manipulation on the projection and stereotyping measures, *F*(1,95) = 8.6, *p* < .01. As shown in Figure 1, focused tests were consistent with the central prediction for Study 2: Projection was higher in the similarity than the dissimilarity condition (.42 vs .08), *t*(95) = 3.3, *p* < .01, whereas stereotyping was lower in the similarity condition than the dssimilaity condition, (.42 vs. .08), *t*(95) = 3.3, *p* < .01. The projection and stereotyping measures were significantly negatively correlated (*r* = -.55, *p* < .01).
-
-
-# Visualize the data
-
-```{r}
-#Calculate stereotyping and projection means by similarity condition
-#Use group_by, summarize
-
-
-#Look at Montecito analysis code to make ggplot bar charts of means by similarity condition
-
-# Is a beeswarm plot a good way to visualize this?
-```
-
-
-# Create subset of data of interest to CCL
-
-Select the following two variables of interest to the CCL team, write and save as Excel.
-
-`why_advocacy`: "Why did you get involved with climate advocacy? What were the factors that led you to get involved with CCL?"
-`feedback_ccl`: "What feedback do you have about your experience volunteering with CCL? Is it a welcoming space for you as a volunteer?"
+- `why_advocacy`: "Why did you get involved with climate advocacy? What were the factors that led you to get involved with CCL?"  
+- `feedback_ccl`: "What feedback do you have about your experience volunteering with CCL? Is it a welcoming space for you as a volunteer?"
 
 ```{r}
 # Select columns of interest to Brett: `why_advocacy` and `feedback_ccl`
