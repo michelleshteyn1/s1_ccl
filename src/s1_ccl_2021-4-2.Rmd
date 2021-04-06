@@ -638,16 +638,6 @@ anova_data2 %>%
   sample_n_by(exp_condition, ranking, size = 1)
 ```
 
-## Summary statistics
-
-Group the data by `exp_condition` and `ranking`, and then compute some summary statistics of the `score` variable: mean and sd. 
-
-```{r, warning=FALSE, message=FALSE}
-anova_data2 %>% 
-  group_by(exp_condition, ranking) %>% 
-  get_summary_stats(score, type = "mean_sd")
-
-```
 
 ## Visualization
 
@@ -715,8 +705,8 @@ From the plot above, as all the points fall approximately along the reference li
 #)
 
 # I got an error, let me try to omit NAs from my data
-#anova_data2 <- anova_data2 %>% 
-#  drop_na()
+anova_data2 <- anova_data2 %>% 
+  drop_na()
 
 #Still didn't work
 
@@ -726,8 +716,9 @@ From the plot above, as all the points fall approximately along the reference li
 demo1.aov <- aov(score ~ exp_condition * ranking + Error(id), data = anova_data2)
 #summary(demo1.aov)
 
+
 tidy_aov <- broom::tidy(demo1.aov) %>% 
-    kable(col.names = c("Stratum",
+    kable(col.names = c("Between-Groups or Within-Subjects",
                         "Factor",
                         "df",
                         "Sum of Squares",
@@ -759,14 +750,18 @@ with(anova_data2, interaction.plot(ranking, exp_condition, score,
 
 The between groups test indicates that the variable `exp_condition` is not significant, consequently in the graph we see that the lines for the two groups are overlapping. The within subject test indicate that there is significant ranking effect, in other words, the groups change in score over time. In the graph we see that the groups have lines that have a gradual positive slope. Also, since the lines are parallel, we are not surprised that the interaction between time and group is not significant.
 
+## Summary statistics
+Group the data by `exp_condition` and the repeated-measures factor (stereotyping vs. projection), and then compute some summary statistics of the `score` variable: mean and sd.
 
 ```{r, warning=FALSE, message=FALSE}
 anova_data2 %>% 
   group_by(exp_condition, ranking) %>% 
-  summarize(mean_score = mean(score, na.rm = TRUE)) %>% 
+  summarize(mean_score = mean(score, na.rm = TRUE),
+            sd_score = sd(score, na.rm = TRUE)) %>% 
   kable(col.names = c("Experimental Condition",
                         "Repeated-Measures Factor",
-                        "Mean Standardized Beta")) %>% 
+                        "Mean Standardized Beta",
+                      "Standard Deviation")) %>% 
   kable_styling(bootstrap_options = "striped", full_width = FALSE, position = "left")
 
 
