@@ -805,6 +805,104 @@ write_xlsx(feedback_ccl, here("data","feedback_ccl.xlsx"))
 ```
 
 
+# Exploring the data further
+
+DS: Some questions:
+
+## Zero-order correlations
+
+How correlated overall was individual preference with Robert and stereotypical business person?  
+
+- Can you run the correlations b/w the 3 things for each condition?  
+- The below implies that when entered together, typical business was stronger predictor than self, but curious about zero order correlations. The would tell us whether there is any relationship between self-rankings and either of the other two independently.
+
+```{r, warning=FALSE, message=FALSE}
+
+#Create subset with just the variables I'm interested in
+exploratory<-ccl_long %>% 
+  select(id,reason_number,group,s,g,r) %>% 
+  rename(self_rankings = s,
+         stereotype_rankings = g,
+         robert_rankings = r,
+         exp_condition = group) %>% 
+  add_column(self_robert = 0) %>% # Adding 3 new cols. to get ready for regressions on a loop
+  add_column(stereotype_robert = 0) %>% 
+  add_column(self_stereotype = 0)
+
+#Calculate the multiple regressions for every participant 
+
+# For loop will iterate through each row of the dataframe
+# The scope of every action within the for loop is limited to that single iteration, so no need to manually filter data and calculate regression for each participant
+for (i in 1:nrow(exploratory)) {
+  
+  # This creates a dataframe of one row, the row that the for loop is currently on
+  id<-exploratory %>% 
+    filter(id==exploratory[[i, 1]])
+  
+  # This runs the linear regression using the single row created above as the dataframe
+  temp_lm1 <- lm(robert_rankings ~ self_rankings, data = id)
+  temp_lm2 <- lm(robert_rankings ~ stereotype_rankings, data = id)
+  temp_lm3 <- lm(stereotype_rankings ~ self_rankings, data = id)
+  
+  # This converts the linear model object created above into an easy to read and easy to access object. This essentially cleans up the output.
+  tidy_temp_lm1<-broom::tidy(temp_lm1)
+  tidy_temp_lm2<-broom::tidy(temp_lm2)
+  tidy_temp_lm3<-broom::tidy(temp_lm3)
+  
+  # This creates a variable to store the beta coefficient for self ranking predicting robert ranking for this single row
+  temp_self_robert<-tidy_temp_lm1[2, 2]
+  
+  # This creates a variable to store the beta coefficient for stereotype ranking predicting robert ranking for this single row
+  temp_stereotype_robert<-tidy_temp_lm2[2,2]
+  
+    # This creates a variable to store the beta coefficient for self ranking predicting stereotype ranking for this single row
+  temp_self_stereotype<-tidy_temp_lm3[2,2]
+  
+  # The last two lines store the variables created above in columns in the original dataframe in the row that the for loop is currently on
+  exploratory[i, 7]<-temp_self_robert
+  exploratory[i, 8]<-temp_stereotype_robert
+  exploratory[i, 9]<-temp_self_stereotype
+}
+
+
+exploratory %>% 
+  group_by(exp_condition) %>% 
+  summarize(mean_self_robert = mean(self_robert, na.rm = TRUE),
+            mean_self_stereotype = mean(self_stereotype, na.rm = TRUE),
+            mean_stereotype_robert = mean(stereotype_robert, na.rm = TRUE)) %>% 
+  kable(col.names = c("Experimental Condition",
+                        "Mean Self-Robert Correlation",
+                        "Mean Self-Stereotype Correlation",
+                      "Mean Stereotype-Robert Correlation")) %>% 
+  kable_styling(bootstrap_options = "striped", full_width = FALSE, position = "left")
+```
+
+
+From this table, it appears that in the **Different** condition, participants had a stronger negative correlation between self and Robert than in the **Similar** condition (although the relationships were close to zero for both, i.e. no relationship). For everyone, the self-stereotype correlation was a weak negative correlation (the experimental condition happened after this so it would not affect differences in the correlations). For everyone, the relationship between stereotype and Robert was strong and positive. 
+
+## Visualize the distributions of the zero-order correlations:
+
+```{r}
+hist(exploratory$self_robert)
+hist(exploratory$self_stereotype)
+hist(exploratory$stereotype_robert)
+```
+
+- As shown in the summary table above, across conditions, the mode correlation for self-robert was close to zero. In other words,participants' ratings for themselves had no relationship to their ratings for Robert.  
+- Across conditions, participants' ratings for self appear to be weakly negatively related to their ratings for the typical businessman.  
+- Across conditions, participants' ratings for the typical businessman are strongly positively correlated to their ratings for Robert (the median is ~ 0.5, but the mode is in the .75 to 1.0 bin)
+
+
+
+
+
+
+
+
+Also - did you look at what people chose as the top 2-3 ones for self for business, for Robert? Does it seem as though people were responding reasonably and differently to the prompts?
+
+Also - you counterbalanced, right? Did that have any impact?
+
 
 
 
