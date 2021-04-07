@@ -4,6 +4,8 @@ author: "Michelle Shteyn Handy"
 date: "4/02/2021"
 output: 
   html_document:
+    toc: true
+    toc_float: true
     code_folding: hide 
 ---
 
@@ -821,13 +823,16 @@ How correlated overall was individual preference with Robert and stereotypical b
 #Create subset with just the variables I'm interested in
 exploratory<-ccl_long %>% 
   select(id,reason_number,group,s,g,r) %>% 
+  mutate(id = as.factor(id)) %>% 
   rename(self_rankings = s,
          stereotype_rankings = g,
          robert_rankings = r,
          exp_condition = group) %>% 
   add_column(self_robert = 0) %>% # Adding 3 new cols. to get ready for regressions on a loop
   add_column(stereotype_robert = 0) %>% 
-  add_column(self_stereotype = 0)
+  add_column(self_stereotype = 0) 
+
+  
 
 #Calculate the multiple regressions for every participant 
 
@@ -864,6 +869,12 @@ for (i in 1:nrow(exploratory)) {
   exploratory[i, 9]<-temp_self_stereotype
 }
 
+# Create subset with just the variables I need for my analysis
+
+exploratory <- exploratory %>% 
+  select(id, exp_condition, self_robert, self_stereotype, stereotype_robert) %>% 
+  unique()
+
 
 exploratory %>% 
   group_by(exp_condition) %>% 
@@ -888,20 +899,67 @@ hist(exploratory$self_stereotype)
 hist(exploratory$stereotype_robert)
 ```
 
-- As shown in the summary table above, across conditions, the mode correlation for self-robert was close to zero. In other words,participants' ratings for themselves had no relationship to their ratings for Robert.  
-- Across conditions, participants' ratings for self appear to be weakly negatively related to their ratings for the typical businessman.  
-- Across conditions, participants' ratings for the typical businessman are strongly positively correlated to their ratings for Robert (the median is ~ 0.5, but the mode is in the .75 to 1.0 bin)
+- As shown in the summary table above, across conditions, the mode (and median) correlation for self-robert was close to zero. In other words, participants' ratings for themselves had no relationship to their ratings for Robert. 
+- Across conditions, participants' ratings for self appear to be weakly negatively related to their ratings for the typical businessman (the mode is around -.75, the median around -0.18).  
+- **This is interesting**: it seems that being "introduced" to Robert as a conversation partner, regardless of whether he was manipulated to be similar or different, seems to pull participants away from the stereotype quite a bit.
+- Across conditions, participants' ratings for the typical businessman are strongly positively correlated to their ratings for Robert (the median is around 0.5, but the mode is in the .75 to 1.0 bin)
+
+## Independent Samples T-test
+
+In the table above, the zero-order correlation between self-robert appeared to differ in the similarity and difference conditions (although they were both close to zero). Run a t-test to see if they are significantly different (N.S., *p* = 0.53).
+```{r, message=FALSE, warning=FALSE}
+# Compute t-test of self_robert predicted by exp_condition 
+res <- t.test(self_robert ~ exp_condition, data = exploratory, var.equal = TRUE)
+res
+```
 
 
-
-
-
-
-
+## Examine top 2-3 rankings for self, typical businessman, for Robert
 
 Also - did you look at what people chose as the top 2-3 ones for self for business, for Robert? Does it seem as though people were responding reasonably and differently to the prompts?
 
-Also - you counterbalanced, right? Did that have any impact?
+As shown below (and reinforcing the results we saw in the zero-order correlations), participants respond almost the same when ranking reasons for typical businessman and for Robert.
+
+```{r, warning = FALSE, message=FALSE}
+mean_freq_self <- stereotyping_projection_subset %>% 
+  group_by(reason_number) %>% 
+  summarize(mean_self_ranking = mean(self_rankings))
+
+mean_freq_stereotype<- stereotyping_projection_subset %>% 
+  group_by(reason_number) %>% 
+  summarize(mean_stereotype_ranking = mean(stereotype_rankings))
+
+mean_freq_robert<- stereotyping_projection_subset %>% 
+  group_by(reason_number) %>% 
+  summarize(mean_robert_ranking = mean(robert_rankings))
+
+ggplot(data = mean_freq_self, aes(x = reason_number, y = mean_self_ranking))+
+  geom_bar(stat = "identity")+
+  labs(x = "Reason Number",
+       y = "Mean Ranking",
+       title = "On Average, Participants' Top Reasons for Self are 7, 8, 6")+
+  theme_minimal()
+
+ggplot(data = mean_freq_stereotype, aes(x = reason_number, y = mean_stereotype_ranking))+
+  geom_bar(stat = "identity")+
+    labs(x = "Reason Number",
+       y = "Mean Ranking",
+       title = "On Average, Participants' Top Reasons for Typical Businessman are 2, 3, 1")+
+  theme_minimal()
+
+ggplot(data = mean_freq_robert, aes(x = reason_number, y = mean_robert_ranking))+
+  geom_bar(stat = "identity")+
+      labs(x = "Reason Number",
+       y = "Mean Ranking",
+       title = "On Average, Participants' Top Reasons for Robert are 2, 3, 1")+
+  theme_minimal()
+
+```
+
+
+- For **self**, participants ranked reasons 7 ("It will keep the Earth from warming more than 1.5 degrees Celsius above pre-industrial levels, at which point irreversible damages to our planet - including polar ice sheet collapse, disease, and famines - would occur"), 8 ("It will be a crucial step in mitigating the climate crisis that we have caused and therefore have the responsibility to solve."), 6 ("It will ensure that we leave behind a safe and habitable planet for future generations to enjoy.") as most important on average.  
+- For **stereotype**, participants ranked reasons 2 ("It will create a demand for local jobs and boost local economies as American families spend their monthly carbon dividends in their communities."), 3 ("It will prevent communities and local businesses from losing billions of dollars on damages caused by climate-change related disasters."), 1 ("It will drive innovation and put our country on the forefront of a transition to a clean energy economy.") as most important on average.  
+- For **Robert**, participants ranked reasons 2, 3, 1 as most important on average.  
 
 
 
