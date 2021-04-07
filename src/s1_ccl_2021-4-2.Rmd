@@ -679,12 +679,13 @@ There are 6 extreme outliers: id 50, 65, 106, 5, 35, 119
 
 Compute Shapiro-Wilk test for each combination of factor levels:
 
+This shows that the scores for projection and stereotyping were NOT normally distributed at lines 2 and 4 (*p* < .05)
 ```{r, warning=FALSE, message=FALSE}
 anova_data2 %>% 
   group_by(exp_condition, ranking) %>% 
   shapiro_test(score)
 ```
-This shows that the scores for projection and stereotyping were NOT normally distributed at each ranking point (*p* < .05)
+
 
 Create QQ plot for each cell of design:
 
@@ -748,7 +749,7 @@ with(anova_data2, interaction.plot(ranking, exp_condition, score,
   ylab = "mean standardized beta", xlab = "stereotyping-projection factor", trace.label = "experimental condition"))
 ```
 
-The between groups test indicates that the variable `exp_condition` is not significant, consequently in the graph we see that the lines for the two groups are overlapping. The within subject test indicate that there is significant ranking effect, in other words, the groups change in score over time. In the graph we see that the groups have lines that have a gradual positive slope. Also, since the lines are parallel, we are not surprised that the interaction between time and group is not significant.
+The between groups test indicates that the variable `exp_condition` is not significant, *F*(1,159) = 0.38, *p* = 0.54, and consequently in the graph we see that the lines for the two groups are overlapping. The within-subject test indicates that there is a significant effect of the within-subjects factor (stereotyping-projection); in other words, the groups change in score over time. In the graph we see that the groups have lines that have a gradual positive slope. Also, since the lines are parallel, it is not surprising that the interaction between the stereotyping-projection factor and experimental condition is not significant, *F*(1,159) = 0.52, *p* = 0.47.
 
 ## Summary statistics
 Group the data by `exp_condition` and the repeated-measures factor (stereotyping vs. projection), and then compute some summary statistics of the `score` variable: mean and sd.
