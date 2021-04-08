@@ -524,6 +524,12 @@ ccl %>%
                       "Counts")) %>% 
   kable_styling(bootstrap_options = "striped", full_width = FALSE, position = "left")
 ```
+# Show that similarity condition worked
+
+Show that people's responses matched to Robert's on Qualtrics if in the similarity condition, and were opposite to Robert's responses if in the different condition. 
+```{r}
+
+```
 
 
 # Calculate stereotyping and projection constructs
@@ -807,7 +813,7 @@ write_xlsx(feedback_ccl, here("data","feedback_ccl.xlsx"))
 ```
 
 
-# Exploring the data further
+# Examining Zero-Order Correlations
 
 DS: Some questions:
 
@@ -960,6 +966,48 @@ ggplot(data = mean_freq_robert, aes(x = reason_number, y = mean_robert_ranking))
 - For **self**, participants ranked reasons 7 ("It will keep the Earth from warming more than 1.5 degrees Celsius above pre-industrial levels, at which point irreversible damages to our planet - including polar ice sheet collapse, disease, and famines - would occur"), 8 ("It will be a crucial step in mitigating the climate crisis that we have caused and therefore have the responsibility to solve."), 6 ("It will ensure that we leave behind a safe and habitable planet for future generations to enjoy.") as most important on average.  
 - For **stereotype**, participants ranked reasons 2 ("It will create a demand for local jobs and boost local economies as American families spend their monthly carbon dividends in their communities."), 3 ("It will prevent communities and local businesses from losing billions of dollars on damages caused by climate-change related disasters."), 1 ("It will drive innovation and put our country on the forefront of a transition to a clean energy economy.") as most important on average.  
 - For **Robert**, participants ranked reasons 2, 3, 1 as most important on average.  
+
+# T-tests with Zero-Order Correlations
+
+DS notes: There are 2 ways to look at stereotyping and projection: the MLR beta way, which looks at the *relative* importance of each, or the correlation way, which looks at how the independent impact of each rating differs between conditions. 
+
+Put original MLR beta analyses in primary results section, put correlational analyses as footnote. Do ind samples t-tests for all 3 zero-order correlations to see if they significantly differ between exp condition, and do one-sample t-tests to see if they significantly differ from zero. one sample t-test "evidence that the stereotyping is significantly different from zero, and by how much?"
+
+## Gender differences
+Do 2x2 ANOVA with M/F vs. Similar/Diff on projection and stereotyping, and on zero-order correlations as well
+
+## Liberal vs. conservative differences
+Do 2x2 ANOVA with Libs/Mods + Cons vs. Similar/Diff on projection and stereotyping, and on zero-order correlations as well
+
+# Alternative DV: averages of 'enviro' reasons and and 'businessman' reasons
+
+Content of reasons: the average of reasons 6,7,8 (the consensual long-term sustainability reasons) and 1,2,3 (the consensual businessman reasons) can serve as alternative primary DVs.  
+
+What's the alpha of 6,7,8? Can we make a scale of them.
+What's the alpha of 1,2,3? Average them to make a scale of them. 
+
+That's very similar to the Ames type of analysis.
+
+Do some simple ANOVAs: is the average of 6,7,8 different for Robert in the similarity vs. difference conditions?
+
+Is the average of 2,3,1 higher for Robert in the similarity vs. difference conditions?
+
+Mixed-model ANOVA: look at average ratings of 1,2,3 vs. 6,7,8 in the 2 conditions
+
+## Gender differences
+Do 2x2 ANOVA with M/F vs. Similar/Diff on 6,7,8 and 1,2,3
+
+## Liberal vs. conservative differences
+Do 2x2 ANOVA with Libs/Mods + Cons vs. Similar/Diff on 6,7,8 and 1,2,3
+
+
+# Exploratory: Normative vs. Non-normative
+
+Code participants as concordant or non-concordant with the predominant social norm (in this population, they like camping, adventurous vacation, don't like scary movies). If they had 0 attributes that are most common, they are non-concordant; if 3, they are concordant.  
+
+Does splitting people into normative on 3's or 0s affect the way that they respond to the similarity manipulation? Do a 2x2 ANOVA. 
+
+
 
 
 
