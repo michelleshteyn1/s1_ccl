@@ -22,14 +22,10 @@ library(writexl)
 library(ggpubr)
 library(rstatix)
 library(psych)
-
+library(nlme)
+library(emmeans)
 ```
 
-Notes 4/12/21:  
-
-- clean up the code  
-- I don't need to do t-tests on all 3 zero-order: effect of exp condition on self-stereotype NOT necessary because the experiment happened AFTER people ranked self and stereotype  
-- Should I identify outliers and remove them from the dataset before all analyses? So far, I only removed outliers from the main ANOVA and now it shows the expected pattern more.
 
 # Conduct power analysis
 
@@ -334,6 +330,8 @@ Create 2 binary variables:
 
 - `gender_bin` (Male/Female)  
 - `lib_con` (Liberal = Very liberal, liberal; Conservative = Moderate, Conservative, & Very conservative)
+
+Create `lib_con_num`, a continuous version of `ideology` from 1 (Very Liberal) to 5 (Very Conservative).
 ```{r, message=FALSE, warning=FALSE}
 
 ccl <- ccl %>% 
@@ -348,7 +346,14 @@ ccl <- ccl %>%
     ideology=="Conservative"~"Conservative",
     ideology=="Very conservative"~"Conservative"
   ),
-  lib_con = as.factor(lib_con)) # Make sure `lib_con` is a factor variable
+  lib_con = as.factor(lib_con), # Make sure `lib_con` is a factor variable
+  lib_con_num = case_when(
+    ideology=="Very liberal"~ 1,
+    ideology=="Liberal"~ 2,
+    ideology=="Moderate"~ 3,
+    ideology=="Conservative"~ 4,
+    ideology=="Very conservative"~ 5),
+  lib_con_num = as.factor(lib_con_num)) 
 ```
 
 ### Create binary variable: normative vs. non-normative
@@ -383,7 +388,7 @@ kable(col.names = c("Normative (have all 3 common traits) vs. Non-normative (hav
 
 ### Create secondary DVs: average of Robert 6,7,8 (projection) and Robert 1,2,3 (stereotyping)
 
-Summary statistics a few headings down show that CCL activists' top 3 reasons for self were 7, 8, and 6: the typical environmentalist ones.  
+Summary statistics a few headings down show that CCL activists' top 3 reasons for self were 7, 8, and 6: the typical environmentalist ones.
 - 7: "It will keep the Earth from warming more than 1.5 degrees Celsius above pre-industrial levels, at which point irreversible damages to our planet - including polar ice sheet collapse, disease, and famines - would occur"  
 - 8: "It will be a crucial step in mitigating the climate crisis that we have caused and therefore have the responsibility to solve."  
 - 6: "It will ensure that we leave behind a safe and habitable planet for future generations to enjoy."  
@@ -678,7 +683,7 @@ ccl_long <- ccl %>%
 
 #Create subset with just the variables I'm interested in
 stereotyping_projection_subset<-ccl_long %>% 
-  select(id,reason_number,group,s,g,r, gender_bin, lib_con, normative, projection_678, stereotyping_123) %>% 
+  select(id,reason_number,group,s,g,r, gender_bin, lib_con,lib_con_num, normative, projection_678, stereotyping_123) %>% 
   rename(self_rankings = s,
          stereotype_rankings = g,
          robert_rankings = r) %>% 
@@ -709,8 +714,8 @@ for (i in 1:nrow(stereotyping_projection_subset)) {
   temp_stereotype_rankings<-tidy_temp_lm[3,2]
   
   # The last two lines store the variables created above in columns in the original dataframe in the row that the for loop is currently on
-  stereotyping_projection_subset[i, 12]<-temp_self_rankings
-  stereotyping_projection_subset[i, 13]<-temp_stereotype_rankings
+  stereotyping_projection_subset[i, 13]<-temp_self_rankings
+  stereotyping_projection_subset[i, 14]<-temp_stereotype_rankings
 }
 
 # Example of what is happening on each row in the for loop
@@ -767,6 +772,7 @@ anova_data2 <- anova_data %>%
 set.seed(123)
 anova_data2 %>% 
   sample_n_by(exp_condition, ranking, size = 1)
+
 ```
 
 
@@ -796,23 +802,11 @@ Verify that the data meets the required assumptions for two-way repeated measure
 
 ### Outliers
 
-There are 9 extreme outliers: id 4, 34, 118, 49, 87, 105, 49, 64, 105. **NOTE**: 49's answers for projection and stereotyping are both outliers. **Remove from dataset** for the primary repeated-measures ANOVA analysis.
+There are 9 extreme outliers identified by the `identify_outliers` function: id 4, 34, 118, 49, 87, 105, 49, 64, 105. **Not going to remove them** because it was not determined a priori and the function `identify_outliers()` removes based on IQR, which is really just trimming.
 ```{r, warning=FALSE, message=FALSE}
 anova_data2 %>% 
   group_by(exp_condition, ranking) %>% 
   identify_outliers(score)
-
-# Remove 9 outliers from dataset
-
-anova_data2 <- anova_data2 %>% 
-  filter(id != 4, 
-         id != 34,
-         id != 118,
-         id != 49,
-         id != 87,
-         id != 105,
-         id != 64,
-         id != 105)
 ```
 
 
@@ -820,7 +814,7 @@ anova_data2 <- anova_data2 %>%
 
 Compute Shapiro-Wilk test for each combination of factor levels:
 
-This shows that the scores for projection and stereotyping were NOT normally distributed at lines 2 and 4 (*p* < .05)
+This shows that the scores for projection and stereotyping were NOT normally distributed at line 4 (*p* < .05)
 ```{r, warning=FALSE, message=FALSE}
 anova_data2 %>% 
   group_by(exp_condition, ranking) %>% 
@@ -840,57 +834,205 @@ From the plot above, as all the points fall approximately along the reference li
 
 ## Compute the Two-Way ANOVA:
 
-```{r, message=FALSE, warning=FALSE}
-#res.aov <- anova_test(
-#  data = anova_data2, dv = score, wid = id,
-#  within = c(exp_condition, ranking)
-#)
+I ended up using [this tutorial from UCLA.](https://stats.idre.ucla.edu/r/seminars/repeated-measures-analysis-with-r/)
 
-# I got an error, let me try to omit NAs from my data
+The between groups test indicates that the variable `exp_condition` is not significant, *F*(1,158) = 0.27, *p* = 0.61, and consequently in the graph we see that the lines for the two groups are overlapping. The within-subjects test indicates that there is a significant effect of the within-subjects factor (reasons to support CFD); in other words, the groups change in score over time. In the graph we see that the groups have lines that have a gradual positive slope. The interaction is not significant, *F*(1,158) = 0.52, *p* = 0.47.
+```{r, message=FALSE, warning=FALSE}
+
+# Omit NAs from my data so that both lines show up on the graph
 anova_data2 <- anova_data2 %>% 
   drop_na()
 
-#Still didn't work
-
-#Two other tutorials said to do it the below ways and it worked. Although now it says ANOVA table (type II tests) rather than (type III tests like in the original tutorial)
-
 #Solution from this tutorial: https://stats.idre.ucla.edu/r/seminars/repeated-measures-analysis-with-r/
-demo1.aov <- aov(score ~ exp_condition * ranking + Error(id), data = anova_data2)
-summary(demo1.aov)
+#demo1.aov <- aov(score ~ exp_condition * ranking + Error(id), data = anova_data2)
+#summary(demo1.aov)
 
+#tidy_aov <- broom::tidy(demo1.aov) %>% 
+#   kable(col.names = c("Between-Groups or Within-Subjects",
+#                       "Factor",
+#                        "df",
+#                       "Sum of Squares",
+#                      "Mean Square",
+#                        "F Statistic",
+#                        "P Value")) %>% 
+#  kable_styling(bootstrap_options = "striped", full_width = FALSE, position = "left")
 
-tidy_aov <- broom::tidy(demo1.aov) %>% 
-    kable(col.names = c("Between-Groups or Within-Subjects",
-                        "Factor",
-                        "df",
-                        "Sum of Squares",
-                        "Mean Square",
-                        "F Statistic",
-                        "P Value")) %>% 
-  kable_styling(bootstrap_options = "striped", full_width = FALSE, position = "left")
-
-
-tidy_aov
-
-#Solution from stack overflow
-#res.aov <- anova_test(
-#  data = anova_data2, 
-#  score ~ exp_condition * ranking,
-#  wid = id
-#)
-#res.aov
-
-#What's the difference between doing it the two ways above?
-
+#tidy_aov
 
 par(cex = .6)
 
 with(anova_data2, interaction.plot(ranking, exp_condition, score,
   ylim = c(-1, 1), lty= c(1, 12), lwd = 3,
   ylab = "mean standardized beta", xlab = "stereotyping-projection factor", trace.label = "experimental condition"))
+
 ```
 
-The between groups test indicates that the variable `exp_condition` is not significant, *F*(1,151) = 0.05, *p* = 0.82, and consequently in the graph we see that the lines for the two groups are overlapping. The within-subject test indicates that there is a significant effect of the within-subjects factor (stereotyping-projection); in other words, the groups change in score over time. In the graph we see that the groups have lines that have a gradual positive slope. After removing the outliers, the interaction between the stereotyping-projection factor and experimental condition approaches significance, and this can be seen as the lines start to intersect, *F*(1,151) = 2.5, *p* = 0.11.
+# ANALYSES FOR MANUSCRIPT 4/16/21
+
+## 2 x 2 Repeated-Measures ANOVA: Ames DV
+
+**UPDATE**. I used [this tutorial from biostats](https://biostats.w.uib.no/factorial-repeated-measures-anova-two-way-repeated-measures-anova/) to do the repeated measures ANOVA and [this tutorial from biostats](https://biostats.w.uib.no/post-hoc-tests-multiple-comparisons-in-linear-mixed-effect-models-2/) to do the multiple comparisons.
+
+**NOTE**. I got slightly different results from this ANOVA than the one above, probably because I did it as a linear model rather than with the ANOVA function.
+
+Should report as F(df ranking, df error) = F-value, p = p-value
+
+Primary Ames ANOVA: 
+
+There was no significant interaction between experimental condition and the within-subjects factor of projection/stereotyping on projection and stereotyping scores, *F*(1,158) = 0.68443, *p* = .4093. Participants in the similarity condition did NOT show significantly greater projection than those in the dissimilarity condition (0.0937 vs. 0.0788), *t*(158) = 0.211, *p* = .9967, or significantly less stereotyping than those in the dissimilarity condition (0.4990 vs. 0.5638), *t*(158) = -.915, *p* = .7967.
+
+
+```{r, message=FALSE, warning=FALSE}
+
+#2-WAY REPEATED MEASURES ANOVA
+#https://biostats.w.uib.no/factorial-repeated-measures-anova-two-way-repeated-measures-anova/
+
+#We first need to fit the linear mixed effect model with lme(). The syntax is as follows: lme(response ~ predictor1 * predictor2, random=~1|subjects, data = my.dataframe), where response is the response variable, predictor1 and predictor2 are the predictor variables or factors (which categorize the observations), subjects is the variable that defines the individuals, and dataframe the name of the dataframe that contains the data.
+
+ames_anova <- lme(score ~ ranking * exp_condition, random=~1|id, data=anova_data2)
+anova(ames_anova) 
+
+#Post-Hoc Tests: Multiple Comparisons in Linear Mixed Effect Models
+#https://biostats.w.uib.no/post-hoc-tests-multiple-comparisons-in-linear-mixed-effect-models-2/
+
+#The next step consists in “feeding” the linear mixed effect model to emmeans(). The #syntax is emmeans(model, pairwise ~ predictor1 * predictor2) where predictor1 and #predictor2 are the predictor variables which levels have to be compared pairwise:
+
+# running emmeans()
+#emmeans(ames_anova, pairwise ~ exp_condition*ranking)
+
+#If you are not interested in the full table, but only the part showing the breakdown #based on the levels of a specific factor, run pairs(emm, simple = "predictor") instead:
+# running pairs()
+emm1 <- emmeans(ames_anova, ~ exp_condition*ranking)
+pairs(emm1, simple = "exp_condition")
+```
+
+## T-test: Experimental Condition on Alt. DV: 3 and 3
+
+There was no significant effect of experimental condition on the alternative DV of projection (selecting environmental reasons as important to Robert), *t*(159) = -1.5132, *p* = 0.1322. Participants in the similarity condition did not project significantly more than those in the difference condition (Means: 3.667 vs. 3.333 respectively).
+
+There was no significant effect of experimental condition on the alternative DV of stereotyping (selecting business reasons as important to Robert), *t*(159) = 1.0871, *p* = 0.2786. Participants in the dissimilarity condition did not stereotype significantly more than those in the similarity condition (Means: 5.755 vs. 5.561 respectively).
+
+
+```{r, message=FALSE, warning=FALSE}
+alt_DV_subset <- stereotyping_projection_subset %>% 
+  select(id, group, projection_678, stereotyping_123) %>% 
+  unique()
+
+# Effect of exp condition on projection_678
+ttest_projection678 <- t.test(projection_678~ group, data = alt_DV_subset, var.equal = TRUE)
+ttest_projection678
+
+# Effect of exp condition on stereotyping_123
+ttest_stereotyping123 <- t.test(stereotyping_123 ~ group, data = alt_DV_subset, var.equal = TRUE)
+ttest_stereotyping123
+```
+
+
+# Lib/Con on Ames Stereotyping/Projection and 3 and 3
+
+AMES PROJECTION:
+The interaction between experimental condition and lib/con on the Ames measure of projection approached significance, *F*(1,152) = 2.85, *p* = .0934. Paired contrasts showed that in the dissimilarity condition, there was a significant difference in conservatives' and liberals' level of projection such that conservatives projected more by 0.2158 than liberals, on average, (Ms: .2018 vs. -0.0140, respectively) *t*(152) = 2.084, *p* = 0.0388. All other paired contrasts were not significant. 
+
+This analysis was examined with political ideology as a continuous variable from 1 (Very Liberal) to 4 (Conservative). The interaction between ideology and experimental condition on projection was significant, *F*(3,148) = 3.974, *p* = .00929.
+
+AMES STEREOTYPING:
+The interaction between experimental condition and lib/con on the Ames measure of stereotyping approached significance, *F*(1,151) = 3.358, *p* = .0689. Paired contrasts showed that, for liberals, the effect of experimental condition on stereotyping approached significance such that liberals in the dissimilarity condition stereotyped 0.147 units more on average than those liberals in the similarity condition (Ms: 0.615 vs. 0.468), *t*(151) = 1.658, *p* = 0.0993. All other paired contrasts were not significant.
+
+This analysis was examined with political ideology as a continuous variable from 1 (Very Liberal) to 4 (Conservative). The interaction between ideology and experimental condition on stereotyping was not significant, *F*(3,147) = 1.199, *p* = .312.
+
+
+PROJECTION 678:
+The interaction between experimental condition and lib/con on the alternative measure of projection approached significance, *F*(1,152) = 3.819, *p* = .0525. Paired contrasts showed that, for liberals, the effect of experimental condition on projection was significant such that those in the similarity condition projected 0.647 units more on average than those in the dissimilarity condition (Ms: 3.76 vs. 3.12), *t*(152) = -2.355, *p* = 0.0198. All other paired contrasts were not significant.
+
+This analysis was examined with political ideology as a continuous variable from 1 (Very Liberal) to 4 (Conservative). The interaction between ideology and experimental condition on the alternative measure of projection was not significant, *F*(3,148) = 1.377, *p* = .252.
+
+
+
+STEREOTYPING 123: 
+The interaction between experimental condition and lib/con on the alternative measure of stereotyping was significant, *F*(1,152) = 4.105, *p* = .0445. Paired contrasts revealed that, for liberals, the effect of experimental condition on stereotyping was significant such that those in the dissimilarity condition stereotyped about 0.457 units more on average than those in the similarity condition (Ms: 5.92 vs. 5.46), *t* = 2.067, *p* = 0.0404. All other paired contrasts were not significant.
+
+This analysis was examined with political ideology as a continuous variable from 1 (Very Liberal) to 4 (Conservative). The interaction between ideology and experimental condition on the alternative measure of stereotyping was not significant, *F*(3,148) = 1.339, *p* = .264.
+
+
+
+```{r, message=FALSE,warning=FALSE, results='hide'}
+libcon_subset <- stereotyping_projection_subset %>% 
+  select(id, lib_con, lib_con_num, group, projection, stereotyping, projection_678, stereotyping_123) %>% 
+  unique()
+
+# Ames Projection and Stereotyping:
+
+#Two-way anova: lib_con (lib vs. con) and Condition (Sim/Diff) on projection:
+libcon1 <- aov(projection ~ lib_con + group + lib_con:group, data = libcon_subset)
+summary(libcon1)
+
+#Two-way anova: lib_con (lib vs. con)  and Condition (Sim/Diff) on stereotyping:
+libcon2 <- aov(stereotyping ~ lib_con  + group + lib_con:group, data = libcon_subset)
+summary(libcon2)
+
+# CONTRASTS
+contrasts1 <- emmeans(libcon1, pairwise ~ group*lib_con)
+contrasts1
+
+contrasts1_pairs <- emmeans(libcon1, ~ group*lib_con)
+pairs(contrasts1_pairs, simple = "each")
+
+contrasts2 <- emmeans(libcon2, pairwise ~ group*lib_con)
+contrasts2
+
+contrasts2_pairs <- emmeans(libcon2, ~ group*lib_con)
+pairs(contrasts2_pairs, simple = "each")
+
+# Linear Regression
+
+#Two-way anova: lib_con (lib vs. con) and Condition (Sim/Diff) on projection:
+libcon1a <- aov(projection ~ lib_con_num + group + lib_con_num:group, data = libcon_subset)
+summary(libcon1a)
+
+#Two-way anova: lib_con (lib vs. con)  and Condition (Sim/Diff) on stereotyping:
+libcon2a <- aov(stereotyping ~ lib_con_num  + group + lib_con_num:group, data = libcon_subset)
+summary(libcon2a)
+
+
+#3 and 3 Projection and Stereotyping:
+
+#Two-way anova: lib_con (lib vs. con) and Condition (Sim/Diff) on projection_678:
+libcon3 <- aov(projection_678 ~ lib_con + group + lib_con:group, data = libcon_subset)
+summary(libcon3)
+
+#Two-way anova: lib_con (lib vs. con)  and Condition (Sim/Diff) on stereotyping_123:
+libcon4 <- aov(stereotyping_123 ~ lib_con  + group + lib_con:group, data = libcon_subset)
+summary(libcon4)
+
+
+# CONTRASTS
+contrasts3 <- emmeans(libcon3, pairwise ~ group*lib_con)
+contrasts3
+
+contrasts3_pairs <- emmeans(libcon3, ~ group*lib_con)
+pairs(contrasts3_pairs, simple = "each")
+
+contrasts4 <- emmeans(libcon4, pairwise ~ group*lib_con)
+contrasts4
+
+contrasts4_pairs <- emmeans(libcon4, ~ group*lib_con)
+pairs(contrasts4_pairs, simple = "each")
+
+# Linear Regression
+
+#Two-way anova: lib_con (lib vs. con) and Condition (Sim/Diff) on projection_678:
+libcon3a <- aov(projection_678 ~ lib_con_num + group + lib_con_num:group, data = libcon_subset)
+summary(libcon3a)
+
+#Two-way anova: lib_con (lib vs. con)  and Condition (Sim/Diff) on stereotyping_123:
+libcon4a <- aov(stereotyping_123 ~ lib_con_num  + group + lib_con_num:group, data = libcon_subset)
+summary(libcon4a)
+
+```
+
+
+
+
 
 ## Summary statistics
 Group the data by `exp_condition` and the repeated-measures factor (stereotyping vs. projection), and then compute some summary statistics of the `score` variable: mean and sd.
@@ -928,6 +1070,8 @@ Select the following two variables of interest to the CCL team, write and save a
 - `why_advocacy`: "Why did you get involved with climate advocacy? What were the factors that led you to get involved with CCL?"  
 - `feedback_ccl`: "What feedback do you have about your experience volunteering with CCL? Is it a welcoming space for you as a volunteer?"
 
+Also save variables on the 6 Americas.
+
 ```{r}
 # Select columns of interest to Brett: `why_advocacy` and `feedback_ccl`
 
@@ -939,10 +1083,20 @@ Select the following two variables of interest to the CCL team, write and save a
 #  select(response_id, feedback_ccl) %>% 
 #  drop_na()
 
+#six_americas <- ccl %>% 
+#   select(id, imp_gw, worried_gw, harm_personally, harm_future_gen) %>%
+#    rename(casenumber = id,
+#           important = imp_gw,
+#          worry = worried_gw,
+#           personal = harm_personally,
+#           future = harm_future_gen)
+#   drop_na()
+
 # Save subsets as new dataframes in the `data` subfolder
 
 #write_xlsx(why_advocacy, here("data","why_advocacy.xlsx"))
 #write_xlsx(feedback_ccl, here("data","feedback_ccl.xlsx"))
+#write_xlsx(six_americas, here("data","six_americas.xlsx"))
 
 ```
 
@@ -998,9 +1152,9 @@ for (i in 1:nrow(stereotyping_projection_subset)) {
   temp_self_stereotype<-tidy_temp_lm3[2,2]
   
   # The last two lines store the variables created above in columns in the original dataframe in the row that the for loop is currently on
-  stereotyping_projection_subset[i, 14]<-temp_self_robert
-  stereotyping_projection_subset[i, 15]<-temp_stereotype_robert
-  stereotyping_projection_subset[i, 16]<-temp_self_stereotype
+  stereotyping_projection_subset[i, 15]<-temp_self_robert
+  stereotyping_projection_subset[i, 16]<-temp_stereotype_robert
+  stereotyping_projection_subset[i, 17]<-temp_self_stereotype
 }
 
 # Keep variables needed for analysis and get rid of duplicate rows
@@ -1240,30 +1394,30 @@ On zero-order correlations (again, doesn't make sense to look at self-stereotype
 # Projection and Stereotyping:
 
 #Two-way anova: lib_con (lib vs. con) and Condition (Sim/Diff) on projection:
-libcon1 <- aov(projection ~ lib_con + exp_condition + lib_con:exp_condition, data = stereotyping_projection_subset)
-#summary(libcon1)
+libcon1 <- aov(projection ~ lib_con + group + lib_con:group, data = stereotyping_projection_subset)
+summary(libcon1)
 
 #Two-way anova: lib_con (lib vs. con)  and Condition (Sim/Diff) on stereotyping:
-libcon2 <- aov(stereotyping ~ lib_con  + exp_condition + lib_con:exp_condition, data = stereotyping_projection_subset)
+libcon2 <- aov(stereotyping ~ lib_con  + group + lib_con:group, data = stereotyping_projection_subset)
 #summary(libcon2)
 
 
 # Zero-order variables:
 
 #Two-way anova: lib_con and Condition (Sim/Diff) on self-robert:
-libcon3 <- aov(self_robert ~ lib_con + exp_condition + lib_con:exp_condition, data = stereotyping_projection_subset)
+libcon3 <- aov(self_robert ~ lib_con + group + lib_con:group, data = stereotyping_projection_subset)
 #summary(libcon3)
 
 #Two-way anova: lib_con and Condition (Sim/Diff) on stereotype_robert:
-libcon4 <- aov(stereotype_robert ~ lib_con  + exp_condition + lib_con:exp_condition, data = stereotyping_projection_subset)
+libcon4 <- aov(stereotype_robert ~ lib_con  + group + lib_con:egroup, data = stereotyping_projection_subset)
 #summary(libcon4)
 
 grouped_dvs_libcon <- stereotyping_projection_subset %>% 
-  group_by(lib_con, exp_condition) %>% 
+  group_by(lib_con, group) %>% 
   summarize(mean_projection = mean(projection),
             mean_stereotyping = mean(stereotyping, na.rm = TRUE),
-            mean_self_robert = mean(self_robert),
-            mean_stereotype_robert = mean(stereotype_robert)) %>% 
+            mean_projection_678 = mean(projection_678),
+            mean_stereotyping_123 = mean(stereotyping_123)) %>% 
   drop_na()
 
 grouped_dvs_libcon %>% 
@@ -1271,8 +1425,8 @@ grouped_dvs_libcon %>%
                       "Similarity Condition",
                       "Mean Projection",
                       "Mean Stereotyping",
-                      "Mean Self-Robert",
-                      "Mean Stereotype-Robert")) %>% 
+                      "Mean Alt Projection",
+                      "Mean Alt Stereotyping")) %>% 
   kable_styling(bootstrap_options = "striped", full_width = FALSE, position = "left")
 
 ```
@@ -1285,12 +1439,19 @@ Looks like the experimental condition only makes a difference on liberals. Conse
 ```{r, message=FALSE, warning=FALSE}
 
 # On projection
-ggplot(data=grouped_dvs_libcon, aes(x = lib_con, y = mean_projection, fill = exp_condition))+
+ggplot(data=grouped_dvs_libcon, aes(x = lib_con, y = mean_projection, fill = group))+
   geom_bar(stat = "identity", position = "dodge")+
   theme(axis.title.x = element_blank())+
   labs(title = "Effect of Similarity Condition and Lib/Con on Projection",
        y = "Mean Standardized Beta")
 
+
+# On alt projection
+ggplot(data=grouped_dvs_libcon, aes(x = lib_con, y = mean_projection_678, fill = group))+
+  geom_bar(stat = "identity", position = "dodge")+
+  theme(axis.title.x = element_blank())+
+  labs(title = "Effect of Similarity Condition and Lib/Con on Alt DV Projection",
+       y = "Mean Ranking")
 
 ```
 
@@ -1302,12 +1463,20 @@ Liberals stereotype more in the difference condition, conservatives stereotype m
 #Visualize the lib_con * exp_condition interaction on stereotyping
 
 # On stereotyping
-ggplot(data=grouped_dvs_libcon, aes(x = lib_con, y = mean_stereotyping, fill = exp_condition))+
+ggplot(data=grouped_dvs_libcon, aes(x = lib_con, y = mean_stereotyping, fill = group))+
   geom_bar(stat = "identity", position = "dodge")+
   theme(axis.title.x = element_blank())+
   labs(title = "Effect of Similarity Condition and Lib/Con on Stereotyping",
        y = "Mean Standardized Beta")
 
+
+
+# On alt stereotyping
+ggplot(data=grouped_dvs_libcon, aes(x = lib_con, y = mean_stereotyping_123, fill = group))+
+  geom_bar(stat = "identity", position = "dodge")+
+  theme(axis.title.x = element_blank())+
+  labs(title = "Effect of Similarity Condition and Lib/Con on Alt DV Stereotyping",
+       y = "Mean Ranking")
 ```
 
 
@@ -1323,11 +1492,11 @@ Is the average of 2,3,1 higher for Robert in the similarity vs. difference condi
 
 ```{r, message=FALSE, warning=FALSE}
 # Effect of exp condition on projection_678
-aov678 <- t.test(projection_678~ exp_condition, data = stereotyping_projection_subset, var.equal = TRUE)
+aov678 <- t.test(projection_678~ group, data = stereotyping_projection_subset, var.equal = TRUE)
 #aov678 # N.S., p = 0.13
 
 # Effect of exp condition on stereotyping_123
-aov123 <- t.test(stereotyping_123~ exp_condition, data = stereotyping_projection_subset, var.equal = TRUE)
+aov123 <- t.test(stereotyping_123~ group, data = stereotyping_projection_subset, var.equal = TRUE)
 #aov123 # N.S., p = 0.28
 ```
 
@@ -1342,10 +1511,10 @@ anova_data3 <- stereotyping_projection_subset %>%
   gather(key = "ranking", value = "score", projection_678, stereotyping_123) %>% 
   convert_as_factor(id, ranking) %>% 
   unique() %>% 
-  mutate(exp_condition = as_factor(exp_condition))  
+  mutate(group = as_factor(group))  
 
 
-mixed_aov <- aov(score ~ exp_condition * ranking + Error(id), data = anova_data3)
+mixed_aov <- aov(score ~ group * ranking + Error(id), data = anova_data3)
 #summary(mixed_aov)
 
 
@@ -1363,7 +1532,7 @@ tidy_aov2
 
 par(cex = .6)
 
-with(anova_data3, interaction.plot(ranking, exp_condition, score,
+with(anova_data3, interaction.plot(ranking, group, score,
   ylim = c(1, 8), lty= c(1, 12), lwd = 3,
   ylab = "mean scores", xlab = "stereotyping-projection factor", trace.label = "experimental condition"))
 ```
@@ -1380,11 +1549,11 @@ Do 2x2 ANOVA with M/F vs. Similar/Diff on 6,7,8 and 1,2,3
 ```{r, message=FALSE, warning=FALSE}
 
 #Two-way anova: Gender (M/F) and Condition (Sim/Diff) on projection_678:
-alt_dv_projection <- aov(projection_678 ~ gender_bin + exp_condition + gender_bin:exp_condition, data = stereotyping_projection_subset)
+alt_dv_projection <- aov(projection_678 ~ gender_bin + group + gender_bin:group, data = stereotyping_projection_subset)
 #summary(alt_dv_projection)
 
 #Two-way anova: Gender (M/F) and Condition (Sim/Diff) on stereotyping_123:
-alt_dv_stereotyping <- aov(stereotyping_123 ~ gender_bin + exp_condition + gender_bin:exp_condition, data = stereotyping_projection_subset)
+alt_dv_stereotyping <- aov(stereotyping_123 ~ gender_bin + group + gender_bin:group, data = stereotyping_projection_subset)
 #summary(alt_dv_stereotyping)
 
 ```
@@ -1401,11 +1570,11 @@ Do 2x2 ANOVA with Libs/Mods + Cons vs. Similar/Diff on 6,7,8 and 1,2,3
 
 ```{r, message=FALSE, warning=FALSE}
 #Two-way anova: lib_con and Condition (Sim/Diff) on projection_678:
-alt_dv_projection_libcon <- aov(projection_678 ~ lib_con + exp_condition + lib_con:exp_condition, data = stereotyping_projection_subset)
+alt_dv_projection_libcon <- aov(projection_678 ~ lib_con + group + lib_con:group, data = stereotyping_projection_subset)
 #summary(alt_dv_projection_libcon)
 
 #Two-way anova: lib_con and Condition (Sim/Diff) on stereotyping_123:
-alt_dv_stereotyping_libcon <- aov(stereotyping_123 ~ lib_con + exp_condition + lib_con:exp_condition, data = stereotyping_projection_subset)
+alt_dv_stereotyping_libcon <- aov(stereotyping_123 ~ lib_con + group + lib_con:group, data = stereotyping_projection_subset)
 #summary(alt_dv_stereotyping_libcon)
 
 ```
@@ -1423,11 +1592,11 @@ Does splitting people into normative on 3's or 0s affect the way that they respo
 - on `stereotyping_123`: interaction approaches significance, *p* = .07
 ```{r, message=FALSE, warning=FALSE}
 #Two-way anova: normative and Condition (Sim/Diff) on projection_678:
-normative <- aov(projection_678 ~ normative + exp_condition + normative:exp_condition, data = stereotyping_projection_subset)
+normative <- aov(projection_678 ~ normative + group + normative:group, data = stereotyping_projection_subset)
 #summary(normative)
 
 #Two-way anova: normative and Condition (Sim/Diff) on stereotyping_123:
-normative1 <- aov(stereotyping_123 ~ normative + exp_condition + normative:exp_condition, data = stereotyping_projection_subset)
+normative1 <- aov(stereotyping_123 ~ normative + group + normative:group, data = stereotyping_projection_subset)
 #summary(normative1)
 
 
@@ -1438,7 +1607,7 @@ normative1 <- aov(stereotyping_123 ~ normative + exp_condition + normative:exp_c
 
 ```{r, message=FALSE, warning=FALSE}
 normative_grouped <- stereotyping_projection_subset %>% 
-  group_by(normative, exp_condition) %>% 
+  group_by(normative, group) %>% 
   summarise(mean_projection_678 = mean(projection_678, na.rm = TRUE),
             mean_stereotyping_123 = mean(stereotyping_123, na.rm = TRUE)) %>% 
   drop_na()
@@ -1450,7 +1619,7 @@ normative_grouped <- stereotyping_projection_subset %>%
 #### On alt DV of projection: 
 
 ```{r}
-ggplot(data=normative_grouped, aes(x = normative, y = mean_projection_678, fill = exp_condition))+
+ggplot(data=normative_grouped, aes(x = normative, y = mean_projection_678, fill = group))+
   geom_bar(stat = "identity", position = "dodge")+
   theme(axis.title.x = element_blank())+
   labs(title = "Effect of Experimental Condition and Norm/Non-Norm on Projection",
@@ -1461,7 +1630,7 @@ ggplot(data=normative_grouped, aes(x = normative, y = mean_projection_678, fill 
 #### On alt DV of stereotyping:
 
 ```{r}
-ggplot(data=normative_grouped, aes(x = normative, y = mean_stereotyping_123, fill = exp_condition))+
+ggplot(data=normative_grouped, aes(x = normative, y = mean_stereotyping_123, fill = group))+
   geom_bar(stat = "identity", position = "dodge")+
   theme(axis.title.x = element_blank())+
   labs(title = "Effect of Experimental Condition and Norm/Non-Norm on Stereotyping",
