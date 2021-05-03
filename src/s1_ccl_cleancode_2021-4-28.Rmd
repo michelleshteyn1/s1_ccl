@@ -1,0 +1,1159 @@
+---
+title: 'S1: CCL Final Analyses'
+author: "Michelle Shteyn Handy"
+date: "4/28/2021"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: hide 
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+#Attach packages
+library(tidyverse)
+library(here)
+library(lubridate)
+library(janitor)
+library(kableExtra)
+library(ggpubr)
+library(rstatix)
+library(psych)
+library(nlme)
+library(emmeans)
+library(forcats)
+```
+
+4-28-2021 notes
+
+for main analysis: also find SE, 95%CI
+for interactions: also find SE, 95% CI, effect size
+resource on plotting means and error bars: http://www.cookbook-r.com/Graphs/Plotting_means_and_error_bars_(ggplot2)/
+
+make 2 finalized interaction plots: (libcon*condition on projection), and libcon*condition on stereotyping, with error bars
+
+
+# Read in data and initial wrangling
+
+## Delete all piloting 
+
+- The study was conducted from March 12, 2021 to April 1, 2021  
+- Delete anyone before 03-12-2021  
+- Delete duplicate IP addresses  
+- We recruited 200 people from a list of 5000 CCL members. **286 individuals** participated in the study (this includes those who started it but did not complete it, their data was recorded)
+
+
+```{r, warning=FALSE, message=FALSE}
+
+# Read in data
+ccl <- read_csv(here::here("data","s1_ccl_2021-4-2.csv"))
+
+# Delete anyone before the survey launched (3-12-2021) 
+ccl <- ccl[-c(1:2),] %>%
+  separate(StartDate, c("date","time"), sep = " ") %>%  
+  mutate(date = ymd(date)) %>%  
+  filter(date >= as.Date("2021-03-12")) %>%  
+  filter(Status != "Survey Preview") %>% # Delete any survey previews (there was 1)
+  filter(ResponseId != "R_3e2HW1XRAHaDuSv") %>%  # Remove David's response 
+  clean_names() %>% 
+  mutate(progress = as.numeric(progress), 
+         duration_in_seconds = as.numeric(duration_in_seconds),
+         duration_in_minutes = duration_in_seconds/60) 
+```
+
+## Data cleaning
+
+- Delete progress < 90%  (108 people)
+- Delete anyone else who took survey in less than 5 min (6 people) or more than 120 minutes (11 people)  
+- 14 people got removed from the Different condition, 9 from Similar, 102 didn't take the survey long enough to get assigned a condition
+- After removing 125 individuals based on the exclusion criteria, **161 individuals** were included in analyses
+
+```{r, warning=FALSE, message=FALSE}
+# Create a new 'remove' variable using an if-else statement
+ccl <- ccl %>% 
+  mutate(remove = ifelse(duration_in_minutes >= 5 & duration_in_minutes <= 120 & progress >= 90, "Keep", "Remove"))
+
+#14 people got removed from the Different condition, 9 from Similar, 102 didn't take the survey long enough to get assigned a condition
+ccl %>% 
+  group_by(remove, group) %>% 
+  summarise(counts = n())
+
+#this confirms 125 people got removed
+ccl <- ccl %>% 
+  filter(progress >= 90) %>% 
+  filter(duration_in_minutes >= 5) %>% 
+  filter(duration_in_minutes <= 120)
+
+# Create a new row called `id` which assigns each Ss an ID number based on the row they are in
+ccl<- ccl %>% 
+  mutate(id = row_number()) %>% 
+  rename(exp_condition = group)
+
+## ALL OF THE ABOVE IS CORRECT
+
+```
+
+
+# Calculating constructs
+
+## Reverse code ranking items
+
+Higher scores indicate greater importance/persuasiveness of that reason.
+
+```{r, warning=FALSE, message=FALSE}
+
+# Reverse code self ranking items
+
+ccl <- ccl %>% 
+  mutate(s1 = case_when(
+                   self_1 == 1 ~ 8, 
+                   self_1 == 2 ~ 7, 
+                   self_1 == 3 ~ 6, 
+                   self_1 == 4 ~ 5, 
+                   self_1 == 5 ~ 4,
+                   self_1 == 6 ~ 3, 
+                   self_1 == 7 ~ 2,
+                   self_1 == 8 ~ 1),
+         s2 = case_when(
+                   self_2 == 1 ~ 8, 
+                   self_2 == 2 ~ 7, 
+                   self_2 == 3 ~ 6, 
+                   self_2 == 4 ~ 5, 
+                   self_2 == 5 ~ 4,
+                   self_2 == 6 ~ 3, 
+                   self_2 == 7 ~ 2,
+                   self_2 == 8 ~ 1),
+         s3 = case_when(
+                   self_3 == 1 ~ 8, 
+                   self_3 == 2 ~ 7, 
+                   self_3 == 3 ~ 6, 
+                   self_3 == 4 ~ 5, 
+                   self_3 == 5 ~ 4,
+                   self_3 == 6 ~ 3, 
+                   self_3 == 7 ~ 2,
+                   self_3 == 8 ~ 1),
+         s4 = case_when(
+                   self_4 == 1 ~ 8, 
+                   self_4 == 2 ~ 7, 
+                   self_4 == 3 ~ 6, 
+                   self_4 == 4 ~ 5, 
+                   self_4 == 5 ~ 4,
+                   self_4 == 6 ~ 3, 
+                   self_4 == 7 ~ 2,
+                   self_4 == 8 ~ 1),
+         s5 = case_when(
+                   self_5 == 1 ~ 8, 
+                   self_5 == 2 ~ 7, 
+                   self_5 == 3 ~ 6, 
+                   self_5 == 4 ~ 5, 
+                   self_5 == 5 ~ 4,
+                   self_5 == 6 ~ 3, 
+                   self_5 == 7 ~ 2,
+                   self_5 == 8 ~ 1),
+         s6 = case_when(
+                  self_6 == 1 ~ 8, 
+                   self_6 == 2 ~ 7, 
+                   self_6 == 3 ~ 6, 
+                   self_6 == 4 ~ 5, 
+                   self_6 == 5 ~ 4,
+                   self_6 == 6 ~ 3, 
+                   self_6 == 7 ~ 2,
+                   self_6 == 8 ~ 1),
+         s7 = case_when(
+                   self_7 == 1 ~ 8, 
+                   self_7 == 2 ~ 7, 
+                   self_7 == 3 ~ 6, 
+                   self_7 == 4 ~ 5, 
+                   self_7 == 5 ~ 4,
+                   self_7 == 6 ~ 3, 
+                   self_7 == 7 ~ 2,
+                   self_7 == 8 ~ 1),
+         s8 = case_when(
+                   self_8 == 1 ~ 8, 
+                   self_8 == 2 ~ 7, 
+                   self_8 == 3 ~ 6, 
+                   self_8 == 4 ~ 5, 
+                   self_8 == 5 ~ 4,
+                   self_8 == 6 ~ 3, 
+                   self_8 == 7 ~ 2,
+                   self_8 == 8 ~ 1))
+
+# Reverse code stereotype ranking items
+
+ccl <- ccl %>% 
+  mutate(g1 = case_when(
+                   stereotype_1 == 1 ~ 8, 
+                   stereotype_1 == 2 ~ 7, 
+                   stereotype_1 == 3 ~ 6, 
+                   stereotype_1 == 4 ~ 5, 
+                   stereotype_1 == 5 ~ 4,
+                   stereotype_1 == 6 ~ 3, 
+                   stereotype_1 == 7 ~ 2,
+                   stereotype_1 == 8 ~ 1),
+         g2 = case_when(
+                   stereotype_2 == 1 ~ 8, 
+                   stereotype_2 == 2 ~ 7, 
+                   stereotype_2 == 3 ~ 6, 
+                   stereotype_2 == 4 ~ 5, 
+                   stereotype_2 == 5 ~ 4,
+                   stereotype_2 == 6 ~ 3, 
+                   stereotype_2 == 7 ~ 2,
+                   stereotype_2 == 8 ~ 1),
+         g3 = case_when(
+                   stereotype_3 == 1 ~ 8, 
+                   stereotype_3 == 2 ~ 7, 
+                   stereotype_3 == 3 ~ 6, 
+                   stereotype_3 == 4 ~ 5, 
+                   stereotype_3 == 5 ~ 4,
+                   stereotype_3 == 6 ~ 3, 
+                   stereotype_3 == 7 ~ 2,
+                   stereotype_3 == 8 ~ 1),
+         g4 = case_when(
+                   stereotype_4 == 1 ~ 8, 
+                   stereotype_4 == 2 ~ 7, 
+                   stereotype_4 == 3 ~ 6, 
+                   stereotype_4 == 4 ~ 5, 
+                   stereotype_4 == 5 ~ 4,
+                   stereotype_4 == 6 ~ 3, 
+                   stereotype_4 == 7 ~ 2,
+                   stereotype_4 == 8 ~ 1),
+         g5 = case_when(
+                   stereotype_5 == 1 ~ 8, 
+                   stereotype_5 == 2 ~ 7, 
+                   stereotype_5 == 3 ~ 6, 
+                   stereotype_5 == 4 ~ 5, 
+                   stereotype_5 == 5 ~ 4,
+                   stereotype_5 == 6 ~ 3, 
+                   stereotype_5 == 7 ~ 2,
+                   stereotype_5 == 8 ~ 1),
+         g6 = case_when(
+                  stereotype_6 == 1 ~ 8, 
+                   stereotype_6 == 2 ~ 7, 
+                   stereotype_6 == 3 ~ 6, 
+                   stereotype_6 == 4 ~ 5, 
+                   stereotype_6 == 5 ~ 4,
+                   stereotype_6 == 6 ~ 3, 
+                   stereotype_6 == 7 ~ 2,
+                   stereotype_6 == 8 ~ 1),
+         g7 = case_when(
+                   stereotype_7 == 1 ~ 8, 
+                   stereotype_7 == 2 ~ 7, 
+                   stereotype_7 == 3 ~ 6, 
+                   stereotype_7 == 4 ~ 5, 
+                   stereotype_7 == 5 ~ 4,
+                   stereotype_7 == 6 ~ 3, 
+                   stereotype_7 == 7 ~ 2,
+                   stereotype_7 == 8 ~ 1),
+         g8 = case_when(
+                   stereotype_8 == 1 ~ 8, 
+                   stereotype_8 == 2 ~ 7, 
+                   stereotype_8 == 3 ~ 6, 
+                   stereotype_8 == 4 ~ 5, 
+                   stereotype_8 == 5 ~ 4,
+                   stereotype_8 == 6 ~ 3, 
+                   stereotype_8 == 7 ~ 2,
+                   stereotype_8 == 8 ~ 1))
+
+# Reverse code robert ranking items
+
+ccl <- ccl %>% 
+  mutate(r1 = case_when(
+                   robert_1 == 1 ~ 8, 
+                   robert_1 == 2 ~ 7, 
+                   robert_1 == 3 ~ 6, 
+                   robert_1 == 4 ~ 5, 
+                   robert_1 == 5 ~ 4,
+                   robert_1 == 6 ~ 3, 
+                   robert_1 == 7 ~ 2,
+                   robert_1 == 8 ~ 1),
+         r2 = case_when(
+                   robert_2 == 1 ~ 8, 
+                   robert_2 == 2 ~ 7, 
+                   robert_2 == 3 ~ 6, 
+                   robert_2 == 4 ~ 5, 
+                   robert_2 == 5 ~ 4,
+                   robert_2 == 6 ~ 3, 
+                   robert_2 == 7 ~ 2,
+                   robert_2 == 8 ~ 1),
+         r3 = case_when(
+                   robert_3 == 1 ~ 8, 
+                   robert_3 == 2 ~ 7, 
+                   robert_3 == 3 ~ 6, 
+                   robert_3 == 4 ~ 5, 
+                   robert_3 == 5 ~ 4,
+                   robert_3 == 6 ~ 3, 
+                   robert_3 == 7 ~ 2,
+                   robert_3 == 8 ~ 1),
+         r4 = case_when(
+                   robert_4 == 1 ~ 8, 
+                   robert_4 == 2 ~ 7, 
+                   robert_4 == 3 ~ 6, 
+                   robert_4 == 4 ~ 5, 
+                   robert_4 == 5 ~ 4,
+                   robert_4 == 6 ~ 3, 
+                   robert_4 == 7 ~ 2,
+                   robert_4 == 8 ~ 1),
+         r5 = case_when(
+                   robert_5 == 1 ~ 8, 
+                   robert_5 == 2 ~ 7, 
+                   robert_5 == 3 ~ 6, 
+                   robert_5 == 4 ~ 5, 
+                   robert_5 == 5 ~ 4,
+                   robert_5 == 6 ~ 3, 
+                   robert_5 == 7 ~ 2,
+                   robert_5 == 8 ~ 1),
+         r6 = case_when(
+                  robert_6 == 1 ~ 8, 
+                   robert_6 == 2 ~ 7, 
+                   robert_6 == 3 ~ 6, 
+                   robert_6 == 4 ~ 5, 
+                   robert_6 == 5 ~ 4,
+                   robert_6 == 6 ~ 3, 
+                   robert_6 == 7 ~ 2,
+                   robert_6 == 8 ~ 1),
+         r7 = case_when(
+                   robert_7 == 1 ~ 8, 
+                   robert_7 == 2 ~ 7, 
+                   robert_7 == 3 ~ 6, 
+                   robert_7 == 4 ~ 5, 
+                   robert_7 == 5 ~ 4,
+                   robert_7 == 6 ~ 3, 
+                   robert_7 == 7 ~ 2,
+                   robert_7 == 8 ~ 1),
+         r8 = case_when(
+                   robert_8 == 1 ~ 8, 
+                   robert_8 == 2 ~ 7, 
+                   robert_8 == 3 ~ 6, 
+                   robert_8 == 4 ~ 5, 
+                   robert_8 == 5 ~ 4,
+                   robert_8 == 6 ~ 3, 
+                   robert_8 == 7 ~ 2,
+                   robert_8 == 8 ~ 1))
+
+```
+
+
+## Create secondary DVs
+
+### First, examine top 2-3 rankings for self, typical businessman, for Robert
+
+For **self**, participants ranked reasons 7, 8, and 6 as most important on average:
+
+- 7: "It will keep the Earth from warming more than 1.5 degrees Celsius above pre-industrial levels, at which point irreversible damages to our planet - including polar ice sheet collapse, disease, and famines - would occur"  
+- 8: "It will be a crucial step in mitigating the climate crisis that we have caused and therefore have the responsibility to solve."  
+- 6: "It will ensure that we leave behind a safe and habitable planet for future generations to enjoy."
+
+For **stereotype**, participants ranked reasons 2, 3, and 1 as most important on average:  
+
+- 2: "It will create a demand for local jobs and boost local economies as American families spend their monthly carbon dividends in their communities."   
+- 3: "It will prevent communities and local businesses from losing billions of dollars on damages caused by climate-change related disasters."    
+- 1: "It will drive innovation and put our country on the forefront of a transition to a clean energy economy."
+
+For **Robert**, participants ranked reasons 2, 3, and 1 as most important on average.  
+
+```{r, message=FALSE, warning=FALSE}
+
+
+# Use `pivot_longer()` to make the data tidy and have variables for: reason_number, self_rankings, stereotype_rankings, robert_rankings
+ccl_long <- ccl %>% 
+  pivot_longer(
+    cols = s1:r8,
+    names_to = c(".value","reason_number"),
+    names_pattern = "(.)(.)",
+    values_drop_na = TRUE
+  )
+
+top_reasons <- ccl_long %>% 
+  select(id,reason_number,exp_condition,s,g,r) %>% 
+  rename(self_rankings = s,
+         stereotype_rankings = g,
+         robert_rankings = r)
+
+mean_freq_self <- top_reasons %>% 
+  group_by(reason_number) %>% 
+  summarize(mean_self_ranking = mean(self_rankings))
+
+mean_freq_stereotype<- top_reasons %>% 
+  group_by(reason_number) %>% 
+  summarize(mean_stereotype_ranking = mean(stereotype_rankings))
+
+mean_freq_robert<- top_reasons%>% 
+  group_by(reason_number) %>% 
+  summarize(mean_robert_ranking = mean(robert_rankings))
+
+```
+
+
+### Compute alt. projection and alt. stereotyping 
+
+I will average participants' rankings of 7,8,6 *for Robert* as projection, and participants' rankings of 2, 3, 1 *for Robert* as stereotyping.  
+
+- **NOTE**: The Cronbach's alphas for the 2 pairs of 3 items are low (for 7,8,6 across self, group, and Robert rankings, alpha = .48; for 2,3,1 across self, group, and Robert rankings, alpha = .46). 
+
+
+```{r, message=FALSE, warning=FALSE}
+
+# Calculate alpha of s6, s7, s8 to see if the items hang together for self
+self_678 <- ccl %>% 
+  select(s6,s7,s8)
+#alpha(self_678) #alpha = .10, 95% CI [-.14, .34]
+
+# Calculate alpha of g1, g2, g3 to see if the items hang together for typical group member
+group_123 <- ccl %>% 
+  select(g1,g2,g3)
+#alpha(group_123) #alpha = .17, 95% CI [-.05, .40]
+
+# Look at alphas for Robert since those are the items I will create the scales from
+robert_678 <- ccl %>% 
+  select(r6,r7,r8)
+#alpha(robert_678) #alpha = .28, 95% CI [.09, .47]
+
+robert_123<-ccl %>% 
+  select(r1,r2,r3)
+#alpha(robert_123) #alpha = .16, 95% CI [-.07, .38]
+
+
+#Overall, do 1,2,3 hang together and do 6,7,8 hang together?
+
+sgr_678 <- ccl %>% 
+  select(s6,s7,s8,g6,g7,g8,r6,r7,r8)
+#alpha(sgr_678) #alpha = .49, 95% CI [.36, .61]
+
+sgr_123 <- ccl %>% 
+  select(s1,s2,s3,g1,g2,g3,r1,r2,r3)
+#alpha(sgr_123) #alpha = .47, 95% CI [.35, .59]
+
+```
+
+
+```{r, message=FALSE, warning=FALSE}
+# Create the DVs using `mutate` function
+
+ccl <- ccl %>% 
+  mutate(projection_678 = (r6+r7+r8)/3, 
+         stereotyping_123 = (r1+r2+r3)/3) 
+```
+
+
+## Create binary variables
+
+Create 3 binary variables:
+
+- `gender_bin` (Male/Female)  
+- `lib_con` (Liberal = Very liberal, liberal; Conservative = Moderate, Conservative, & Very conservative)
+- `dem_rep` (Democrat = Strong Democrat, Not Very Strong Democrat, Closer to Democratic Party; Republican = Closer to Republican Party, Not Very Strong Republican, Strong Republican)  
+
+
+Create numeric variables:  
+
+- Create `lib_con_num`, a numeric version of `ideology` from 1 (Very Liberal) to 5 (Very Conservative).  
+- Create `pol_7_pt`, which consolidates the branching dem/rep questions into 1 (Strong Democrat) to 7 (Strong Republican).
+
+```{r, message=FALSE, warning=FALSE}
+
+# First, put branching dem/rep into 1 variable
+
+#numeric dem/rep variable
+ccl <- ccl %>% 
+  mutate(pol_7_pt = case_when(
+    dem_strong_weak == "Strong Democrat" ~ 1,
+    dem_strong_weak == "Not Very Strong Democrat" ~ 2, 
+    closer_dem_rep == "Closer to Democratic Party" ~ 3,
+    closer_dem_rep == "Neither" ~ 4,
+    closer_dem_rep == "Closer to Republican Party" ~ 5, 
+    rep_strong_weak == "Not Very Strong Republican" ~ 6,
+    rep_strong_weak == "Strong Republican" ~ 7
+  ))
+
+#mean(ccl$pol_7_pt) 
+
+#character dem/rep
+ccl <- ccl %>% 
+  mutate(pol_7_pt_char = case_when(
+    dem_strong_weak == "Strong Democrat" ~ "Strong Democrat",
+    dem_strong_weak == "Not Very Strong Democrat" ~ "Not Very Strong Democrat", 
+    closer_dem_rep == "Closer to Democratic Party" ~ "Closer to Democratic Party",
+    closer_dem_rep == "Neither" ~ "Neither",
+    closer_dem_rep == "Closer to Republican Party" ~ "Closer to Republican Party", 
+    rep_strong_weak == "Not Very Strong Republican" ~ "Not Very Strong Republican",
+    rep_strong_weak == "Strong Republican" ~ "Strong Republican"
+  ))
+
+
+ccl <- ccl %>% 
+  mutate(gender_bin = case_when(
+    gender=="Female"~"Female",
+    gender=="Male"~"Male"),
+  gender_bin = as.factor(gender_bin), # Make sure `gender_bin` is a factor variable
+  gender_bin = fct_drop(gender_bin),  # Drop unused factor levels
+   lib_con = case_when(
+    ideology=="Very liberal"~"Liberal",
+    ideology=="Liberal"~"Liberal",
+    ideology=="Moderate"~"Moderate/Conservative",
+    ideology=="Conservative"~"Moderate/Conservative",
+    ideology=="Very conservative"~"Moderate/Conservative"),
+  lib_con = as.factor(lib_con), # Make sure `lib_con` is a factor variable
+  lib_con = fct_drop(lib_con),  # Drop unused factor levels
+  lib_con_num = case_when(
+    ideology=="Very liberal"~ 1,
+    ideology=="Liberal"~ 2,
+    ideology=="Moderate"~ 3,
+    ideology=="Conservative"~ 4,
+    ideology=="Very conservative"~ 5),
+   lib_con_num = as.numeric(lib_con_num),
+dem_rep = case_when(
+    pol_7_pt == 1 ~ "Democrat",
+    pol_7_pt == 2 ~ "Democrat",
+    pol_7_pt == 3 ~ "Democrat",
+    pol_7_pt == 5 ~ "Republican",
+    pol_7_pt == 6 ~ "Republican",
+    pol_7_pt == 7 ~ "Republican"),
+    dem_rep = as.factor(dem_rep),
+    dem_rep = fct_drop(dem_rep)) 
+
+
+```
+
+# Manipulation check
+
+## Participants' own responses to similarity questions
+
+Their responses reveal expected levels of variance in the population: 27.78% enjoy relaxing vacations (vs. 71.60% adventurous), 17.28% enjoy scary movies, and 70.99% enjoy camping (vs. 27.16% staying in and watching TV shows).
+
+```{r, message=FALSE, warning=FALSE}
+
+ccl %>% 
+  group_by(vacation) %>% 
+  summarize(count = n(),
+            percent = n()/162*100) %>% 
+   kable(col.names = c("Vacation Preference",
+                      "Counts",
+                      "Percent")) %>% 
+  kable_styling(bootstrap_options = "striped", full_width = FALSE, position = "left")
+
+ccl %>% 
+  group_by(scary_movie) %>% 
+  summarize(count = n(),
+            percent = n()/162*100) %>% 
+   kable(col.names = c("Enjoy Scary Movies?",
+                      "Counts",
+                      "Percent")) %>% 
+  kable_styling(bootstrap_options = "striped", full_width = FALSE, position = "left")
+
+ccl %>% 
+  group_by(outdoor_art) %>% 
+  summarize(count = n(),
+            percent = n()/162*100) %>% 
+   kable(col.names = c("Prefer Camping or Staying In and Watching TV Shows?",
+                      "Counts",
+                      "Percent")) %>% 
+  kable_styling(bootstrap_options = "striped", full_width = FALSE, position = "left")
+
+
+```
+
+## Counts in each experimental condition
+
+79 in the dissimilarity condition, 82 in the similarity condition.
+```{r, message=FALSE, warning=FALSE}
+ccl %>% 
+  group_by(exp_condition) %>% 
+  summarize(count = n()) %>% 
+  kable(col.names = c("Experimental Condition",
+                      "Counts")) %>% 
+  kable_styling(bootstrap_options = "striped", full_width = FALSE, position = "left")
+```
+
+
+# Calculate MLR stereotyping and projection constructs
+
+Used an iterative for loop process.
+
+```{r, message=FALSE, warning=FALSE}
+
+# Use `pivot_longer()` to make the data tidy and have variables for: reason_number, self_rankings, stereotype_rankings, robert_rankings
+ccl_long <- ccl %>% 
+  pivot_longer(
+    cols = s1:r8,
+    names_to = c(".value","reason_number"),
+    names_pattern = "(.)(.)",
+    values_drop_na = TRUE
+  )
+
+
+#Create subset with key variables
+key_variables<-ccl_long %>% 
+  select(id,reason_number,exp_condition,s,g,r, pol_7_pt, dem_rep, gender_bin,lib_con_num, lib_con,projection_678, stereotyping_123) %>% 
+  rename(self_rankings = s,
+         stereotype_rankings = g,
+         robert_rankings = r) %>% 
+  add_column(projection = 0) %>% # Adding two new cols. to get ready for regressions on a loop
+  add_column(stereotyping = 0)
+
+#Calculate the multiple regressions for every participant 
+
+# For loop will iterate through each row of the dataframe
+# The scope of every action within the for loop is limited to that single iteration, so no need to manually filter data and calculate regression for each participant
+for (i in 1:nrow(key_variables)) {
+  
+  # This creates a dataframe of one row, the row that the for loop is currently on
+  id<-key_variables %>% 
+    filter(id==key_variables[[i, 1]])
+  
+  # This runs the MLR using the single row created above as the dataframe
+  temp_lm <- lm(robert_rankings ~ self_rankings + stereotype_rankings, data = id)
+  
+  # This converts the linear model object created above into an easy to read and easy to access object. This essentially cleans up the output.
+  tidy_temp_lm<-broom::tidy(temp_lm)
+  
+  # This creates a variable to store the beta coefficient for self ranking predicting robert ranking for this single row
+  temp_self_rankings<-tidy_temp_lm[2, 2]
+  
+  # This creates a variable to store the beta coefficient for stereotype ranking predicting robert ranking for this single row
+  temp_stereotype_rankings<-tidy_temp_lm[3,2]
+  
+  # The last two lines store the variables created above in columns in the original dataframe in the row that the for loop is currently on
+  key_variables[i, 14]<-temp_self_rankings
+  key_variables[i, 15]<-temp_stereotype_rankings
+}
+
+```
+
+
+## Summary table: M's and SD's key DVs by condition
+
+```{r, message=FALSE, warning=FALSE}
+
+key_variables %>% 
+  group_by(exp_condition) %>% 
+  summarize(mean_projection = mean(projection),
+            sd_projection = sd(projection),
+            mean_stereotyping = mean(stereotyping, na.rm = TRUE),
+            sd_stereotyping = sd(stereotyping, na.rm = TRUE),
+            mean_alt_projection = mean(projection_678),
+            sd_alt_projection = sd(projection_678),
+            mean_alt_stereotyping = mean(stereotyping_123),
+            sd_alt_stereotyping = sd(stereotyping_123)) %>% 
+    kable(col.names = c("Experimental Condition",
+                      "Ames Projection (M)",
+                      "Ames Projection (SD)",
+                      "Ames Stereotyping (M)",
+                      "Ames Stereotyping (SD)",
+                      "Alt Projection (M)",
+                      "Alt Projection (SD)",
+                      "Alt Stereotyping (M)",
+                      "Alt Stereotyping (SD)")) %>% 
+  kable_styling(bootstrap_options = "striped", full_width = FALSE, position = "left")
+
+
+```
+
+
+# Main analyses
+
+## 1) Condition on Ames DV: 2 x 2 Mixed ANOVA
+
+Test the effect of experimental condition (similar vs. dissimilar) and the within-subjects factor of stereotyping and projection ranking items on participants' stereotyping and projection scores.
+
+Use [this resource](http://www.cookbook-r.com/Graphs/Plotting_means_and_error_bars_(ggplot2)/) on plotting means and error bars. That resource is a follow up to [this one](http://www.cookbook-r.com/Manipulating_data/Summarizing_data/) about summarizing data.
+
+summary Se within: https://www.rdocumentation.org/packages/Rmisc/versions/1.5/topics/summarySEwithin
+
+
+```{r, message=FALSE, warning=FALSE}
+# Create a subset of only the variables I need for this analysis: id, exp_condition, projection scores, and stereotyping scores
+# Gather the columns projection and stereotyping into long format.
+# Convert id and exp_condition into factor variables
+
+anova_data <- key_variables %>% 
+  select(id, exp_condition, projection, stereotyping) %>% 
+  gather(key = "ranking", value = "score", projection, stereotyping) %>% 
+  convert_as_factor(id, ranking) %>% 
+  unique() %>% 
+  mutate(exp_condition = as_factor(exp_condition)) %>% 
+  drop_na()
+
+```
+
+There was no significant interaction between experimental condition and the within-subjects factor of projection/stereotyping on projection and stereotyping scores, *F*(1,158) = 0.68443, *p* = .4093. Participants in the similarity condition did NOT show significantly greater projection than those in the dissimilarity condition (0.0937 vs. 0.0788), *t*(158) = 0.211, *p* = .9967, or significantly less stereotyping than those in the dissimilarity condition (0.4990 vs. 0.5638), *t*(158) = -.915, *p* = .7967.
+
+```{r, message=FALSE, warning=FALSE}
+
+#2-WAY REPEATED MEASURES ANOVA
+ames_anova <- lme(score ~ ranking * exp_condition, random=~1|id, data = anova_data) 
+anova(ames_anova) 
+
+# summarySE provides the standard deviation, standard error of the mean, and a (default 95%) confidence interval
+anova_data_summary <- summarySE(anova_data, measurevar="score", groupvars=c("ranking","exp_condition"))
+anova_data_summary
+
+## Error bars represent standard error of the mean
+ggplot(anova_data_summary, aes(x=ranking, y=score, fill=exp_condition)) + 
+    geom_bar(position=position_dodge(), stat="identity",
+             colour="black", # Use black outlines,
+             size=.3) +      # Thinner lines
+    geom_errorbar(aes(ymin=score-se, ymax=score+se),
+                  size=.3,    # Thinner lines
+                  width=.2,
+                  position=position_dodge(.9)) +
+    xlab("") +
+    ylab("Mean standardized beta") +
+    scale_fill_hue(name="Experimental condition", # Legend label, use darker colors
+                   breaks=c("Similar", "Different"),
+                   labels=c("Similarity", "Dissimilarity")) +
+    ggtitle("Projection and Stereotyping as a\nfunction of Experimental Condition") +
+    scale_y_continuous() +
+     scale_x_discrete(breaks=c("projection","stereotyping"),
+        labels=c("Projection", "Stereotyping"))
+    theme_bw()
+
+#Post-Hoc Tests: Multiple Comparisons in Linear Mixed Effect Models
+
+# running emmeans()
+# emmeans(ames_anova, pairwise ~ exp_condition*ranking)
+
+
+# running pairs()
+#emm1 <- emmeans(ames_anova, ~ exp_condition*ranking)
+#pairs(emm1, simple = "exp_condition")
+
+```
+
+## Condition on Alt DVs: Independent-Samples T-tests
+
+There was no significant effect of experimental condition on the alternative DV of projection (selecting environmental reasons as important to Robert), *t*(159) = -1.5132, *p* = 0.1322. Participants in the similarity condition did not project significantly more than those in the difference condition (Means: 3.667 vs. 3.333 respectively).
+
+There was no significant effect of experimental condition on the alternative DV of stereotyping (selecting business reasons as important to Robert), *t*(159) = 1.0871, *p* = 0.2786. Participants in the dissimilarity condition did not stereotype significantly more than those in the similarity condition (Means: 5.755 vs. 5.561 respectively).
+
+```{r, message=FALSE, warning=FALSE}
+
+projection_678_ttest<- t.test(projection_678 ~ exp_condition, data = ccl, var.equal = TRUE)
+#projection_678_ttest
+
+stereotyping_123_ttest<- t.test(stereotyping_123 ~ exp_condition, data = ccl, var.equal = TRUE)
+#stereotyping_123_ttest
+
+```
+
+
+# Moderation analyses
+
+## Lib/Con on Ames Stereotyping/Projection and 3 and 3
+
+AMES PROJECTION:
+The interaction between experimental condition and lib/con on the Ames measure of projection approached significance, *F*(1,152) = 2.85, *p* = .0934. Paired contrasts showed that in the dissimilarity condition, there was a significant difference in conservatives' and liberals' level of projection such that conservatives projected more by 0.2158 than liberals, on average, (Ms: .2018 vs. -0.0140, respectively) *t*(152) = 2.084, *p* = 0.0388. All other paired contrasts were not significant. 
+
+This analysis was examined with political ideology as a continuous variable from 1 (Very Liberal) to 4 (Conservative). The interaction between ideology and experimental condition on projection was significant, *F*(3,148) = 3.974, *p* = .00929.
+
+AMES STEREOTYPING:
+The interaction between experimental condition and lib/con on the Ames measure of stereotyping approached significance, *F*(1,151) = 3.358, *p* = .0689. Paired contrasts showed that, for liberals, the effect of experimental condition on stereotyping approached significance such that liberals in the dissimilarity condition stereotyped 0.147 units more on average than those liberals in the similarity condition (Ms: 0.615 vs. 0.468), *t*(151) = 1.658, *p* = 0.0993. All other paired contrasts were not significant.
+
+This analysis was examined with political ideology as a continuous variable from 1 (Very Liberal) to 4 (Conservative). The interaction between ideology and experimental condition on stereotyping was not significant, *F*(3,147) = 1.199, *p* = .312.
+
+
+PROJECTION 678:
+The interaction between experimental condition and lib/con on the alternative measure of projection approached significance, *F*(1,152) = 3.819, *p* = .0525. Paired contrasts showed that, for liberals, the effect of experimental condition on projection was significant such that those in the similarity condition projected 0.647 units more on average than those in the dissimilarity condition (Ms: 3.76 vs. 3.12), *t*(152) = -2.355, *p* = 0.0198. All other paired contrasts were not significant.
+
+This analysis was examined with political ideology as a continuous variable from 1 (Very Liberal) to 4 (Conservative). The interaction between ideology and experimental condition on the alternative measure of projection was not significant, *F*(3,148) = 1.377, *p* = .252.
+
+
+STEREOTYPING 123: 
+The interaction between experimental condition and lib/con on the alternative measure of stereotyping was significant, *F*(1,152) = 4.105, *p* = .0445. Paired contrasts revealed that, for liberals, the effect of experimental condition on stereotyping was significant such that those in the dissimilarity condition stereotyped about 0.457 units more on average than those in the similarity condition (Ms: 5.92 vs. 5.46), *t* = 2.067, *p* = 0.0404. All other paired contrasts were not significant.
+
+This analysis was examined with political ideology as a continuous variable from 1 (Very Liberal) to 4 (Conservative). The interaction between ideology and experimental condition on the alternative measure of stereotyping was not significant, *F*(3,148) = 1.339, *p* = .264.
+
+
+
+```{r, message=FALSE,warning=FALSE, results='hide'}
+libcon_subset <- key_variables %>% 
+  select(id, lib_con, lib_con_num, pol_7_pt, dem_rep, exp_condition, projection, stereotyping, projection_678, stereotyping_123) %>% 
+  unique()
+
+# Ames Projection and Stereotyping:
+
+#Two-way anova: lib_con (lib vs. con) and Condition (Sim/Diff) on projection:
+libcon1 <- aov(projection ~ lib_con + exp_condition + lib_con:exp_condition, data = libcon_subset)
+summary(libcon1)
+
+## VISUALIZE PROJECTION:
+
+# summarySE provides the standard deviation, standard error of the mean, and a (default 95%) confidence interval
+libcon_summary <- summarySE(libcon_subset, measurevar="projection", groupvars=c("lib_con","exp_condition")) %>% 
+  drop_na()
+libcon_summary
+
+## Error bars represent standard error of the mean
+ggplot(libcon_summary, aes(x=lib_con, y=projection, fill=exp_condition)) + 
+    geom_bar(position=position_dodge(), stat="identity",
+             colour="black", # Use black outlines,
+             size=.3) +      # Thinner lines
+    geom_errorbar(aes(ymin=projection-se, ymax=projection+se),
+                  size=.3,    # Thinner lines
+                  width=.2,
+                  position=position_dodge(.9)) +
+    xlab("") +
+    ylab("Mean standardized beta") +
+    scale_fill_hue(name="Experimental condition", # Legend label, use darker colors
+                   breaks=c("Similar", "Different"),
+                   labels=c("Similarity", "Dissimilarity")) +
+    ggtitle("Projection as a function of Experimental Condition\nand Political Ideology") +
+    scale_y_continuous() +
+    theme_bw()
+
+
+## VISUALIZE STEREOTYPING:
+
+# summarySE provides the standard deviation, standard error of the mean, and a (default 95%) confidence interval
+libcon_summary2 <- summarySE(libcon_subset, measurevar="stereotyping", groupvars=c("lib_con","exp_condition"), na.rm = TRUE) %>% 
+  drop_na()
+libcon_summary2 #where are all the liberals in the similar condition??
+
+## Error bars represent standard error of the mean
+ggplot(libcon_summary2, aes(x=lib_con, y=stereotyping, fill=exp_condition)) + 
+    geom_bar(position=position_dodge(), stat="identity",
+             colour="black", # Use black outlines,
+             size=.3) +      # Thinner lines
+    geom_errorbar(aes(ymin=stereotyping-se, ymax=stereotyping+se),
+                  size=.3,    # Thinner lines
+                  width=.2,
+                  position=position_dodge(.9)) +
+    xlab("") +
+    ylab("Mean standardized beta") +
+    scale_fill_hue(name="Experimental condition", # Legend label, use darker colors
+                   breaks=c("Similar", "Different"),
+                   labels=c("Similarity", "Dissimilarity")) +
+    ggtitle("Stereotyping as a function of Experimental Condition\nand Political Ideology") +
+    scale_y_continuous() +
+    theme_bw()
+
+
+
+
+#Two-way anova: lib_con (lib vs. con)  and Condition (Sim/Diff) on stereotyping:
+libcon2 <- aov(stereotyping ~ lib_con  + exp_condition + lib_con:exp_condition, data = libcon_subset)
+summary(libcon2)
+
+# CONTRASTS
+contrasts1 <- emmeans(libcon1, pairwise ~ exp_condition*lib_con)
+contrasts1
+
+contrasts1_pairs <- emmeans(libcon1, ~ exp_condition*lib_con)
+pairs(contrasts1_pairs, simple = "each")
+
+contrasts2 <- emmeans(libcon2, pairwise ~ exp_condition*lib_con)
+contrasts2
+
+contrasts2_pairs <- emmeans(libcon2, ~ exp_condition*lib_con)
+pairs(contrasts2_pairs, simple = "each")
+
+# Linear Regression
+
+#Two-way anova: lib_con (lib vs. con) and Condition (Sim/Diff) on projection:
+libcon1a <- aov(projection ~ lib_con_num + exp_condition + lib_con_num:exp_condition, data = libcon_subset)
+summary(libcon1a)
+
+libcon1aa <- libcon1a <- aov(projection ~ pol_7_pt + exp_condition + pol_7_pt:exp_condition, data = libcon_subset)
+summary(libcon1aa)
+
+#Two-way anova: lib_con (lib vs. con)  and Condition (Sim/Diff) on stereotyping:
+libcon2a <- aov(stereotyping ~ lib_con_num  + exp_condition + lib_con_num:exp_condition, data = libcon_subset)
+summary(libcon2a)
+
+libcon2aa <- aov(stereotyping ~ pol_7_pt + exp_condition + pol_7_pt:exp_condition, data = libcon_subset)
+summary(libcon2aa)
+
+
+#3 and 3 Projection and Stereotyping:
+
+#Two-way anova: lib_con (lib vs. con) and Condition (Sim/Diff) on projection_678:
+libcon3 <- aov(projection_678 ~ lib_con + exp_condition + lib_con:exp_condition, data = libcon_subset)
+summary(libcon3)
+
+#Two-way anova: lib_con (lib vs. con)  and Condition (Sim/Diff) on stereotyping_123:
+libcon4 <- aov(stereotyping_123 ~ lib_con  + exp_condition + lib_con:exp_condition, data = libcon_subset)
+summary(libcon4)
+
+
+# CONTRASTS
+contrasts3 <- emmeans(libcon3, pairwise ~ exp_condition*lib_con)
+contrasts3
+
+contrasts3_pairs <- emmeans(libcon3, ~ exp_condition*lib_con)
+pairs(contrasts3_pairs, simple = "each")
+
+contrasts4 <- emmeans(libcon4, pairwise ~ exp_condition*lib_con)
+contrasts4
+
+contrasts4_pairs <- emmeans(libcon4, ~ exp_condition*lib_con)
+pairs(contrasts4_pairs, simple = "each")
+
+# Linear Regression
+
+#Two-way anova: lib_con (lib vs. con) and Condition (Sim/Diff) on projection_678:
+libcon3a <- aov(projection_678 ~ lib_con_num + exp_condition + lib_con_num:exp_condition, data = libcon_subset)
+summary(libcon3a)
+
+libcon3aa <- aov(projection_678 ~ pol_7_pt + exp_condition + pol_7_pt:exp_condition, data = libcon_subset)
+summary(libcon3aa)
+
+#Two-way anova: lib_con (lib vs. con)  and Condition (Sim/Diff) on stereotyping_123:
+libcon4a <- aov(stereotyping_123 ~ lib_con_num  + exp_condition + lib_con_num:exp_condition, data = libcon_subset)
+summary(libcon4a)
+
+libcon4aa <- aov(stereotyping_123 ~ pol_7_pt + exp_condition + pol_7_pt:exp_condition, data = libcon_subset)
+summary(libcon4aa)
+```
+
+
+## Visualize these
+
+```{r, message=FALSE, warning=FALSE}
+libcon <- libcon_subset %>% 
+  select(id, lib_con, exp_condition, projection, stereotyping, projection_678, stereotyping_123) %>% 
+  drop_na()
+
+
+grouped_lib_con <- libcon %>% 
+  group_by(lib_con, exp_condition) %>% 
+  summarize(mean_projection = mean(projection),
+            mean_projection_678 = mean(projection_678),
+            mean_stereotyping = mean(stereotyping),
+            mean_stereotyping_123 = mean(stereotyping_123)) 
+
+
+# On projection
+ggplot(data=grouped_lib_con, aes(x = as.factor(lib_con), y = mean_projection, fill = exp_condition))+
+  geom_bar(stat = "identity", position = "dodge")+
+  theme(axis.title.x = element_blank())+
+  labs(title = "Effect of Similarity Condition and Lib/Con on Projection",
+       y = "Mean standardized beta")
+
+# On alt projection
+ggplot(data=grouped_lib_con, aes(x = lib_con, y = mean_projection_678, fill = exp_condition))+
+  geom_bar(stat = "identity", position = "dodge")+
+  theme(axis.title.x = element_blank())+
+  labs(title = "Effect of Similarity Condition and Lib/Con on Alt DV Projection",
+       y = "Mean ranking")
+
+
+# On stereotyping
+ggplot(data=grouped_lib_con, aes(x = as.factor(lib_con), y = mean_stereotyping, fill = exp_condition))+
+  geom_bar(stat = "identity", position = "dodge")+
+  theme(axis.title.x = element_blank())+
+  labs(title = "Effect of Similarity Condition and Lib/Con on Stereotyping",
+       y = "Mean standardized beta")
+
+
+# On alt stereotyping
+ggplot(data=grouped_lib_con, aes(x = lib_con, y = mean_stereotyping_123, fill = exp_condition))+
+  geom_bar(stat = "identity", position = "dodge")+
+  theme(axis.title.x = element_blank())+
+  labs(title = "Effect of Similarity Condition and Lib/Con on Alt DV Stereotyping",
+       y = "Mean Ranking")
+
+
+```
+
+
+## Dem/Rep x Condition
+
+```{r, message=FALSE, warning=FALSE}
+demrep <- libcon_subset %>% 
+  select(id, dem_rep, exp_condition, projection, stereotyping, projection_678, stereotyping_123) %>% 
+  drop_na()
+
+
+grouped_demrep<- demrep %>% 
+  group_by(dem_rep, exp_condition) %>% 
+  summarize(mean_projection = mean(projection),
+            mean_projection_678 = mean(projection_678),
+            mean_stereotyping = mean(stereotyping),
+            mean_stereotyping_123 = mean(stereotyping_123)) 
+
+
+# On projection
+ggplot(data=grouped_demrep, aes(x = as.factor(dem_rep), y = mean_projection, fill = exp_condition))+
+  geom_bar(stat = "identity", position = "dodge")+
+  theme(axis.title.x = element_blank())+
+  labs(title = "Effect of Similarity Condition and DemRep on Projection",
+       y = "Mean standardized beta")
+
+# On alt projection
+ggplot(data=grouped_demrep, aes(x = dem_rep, y = mean_projection_678, fill = exp_condition))+
+  geom_bar(stat = "identity", position = "dodge")+
+  theme(axis.title.x = element_blank())+
+  labs(title = "Effect of Similarity Condition and DemRep on Alt DV Projection",
+       y = "Mean ranking")
+
+
+# On stereotyping
+ggplot(data=grouped_demrep, aes(x = as.factor(dem_rep), y = mean_stereotyping, fill = exp_condition))+
+  geom_bar(stat = "identity", position = "dodge")+
+  theme(axis.title.x = element_blank())+
+  labs(title = "Effect of Similarity Condition and DemRep on Stereotyping",
+       y = "Mean standardized beta")
+
+
+# On alt stereotyping
+ggplot(data=grouped_demrep, aes(x = dem_rep, y = mean_stereotyping_123, fill = exp_condition))+
+  geom_bar(stat = "identity", position = "dodge")+
+  theme(axis.title.x = element_blank())+
+  labs(title = "Effect of Similarity Condition and DemRep on Alt DV Stereotyping",
+       y = "Mean Ranking")
+
+```
+
+# Descriptives
+
+## Age
+
+Participants ranged from 18 to 84 years old (median = 66, *SD* = 16.84 years). Three participants wrote in their own responses: "Older than you," "70 (Retired)," "over 60."
+
+```{r, warning=FALSE,message=FALSE}
+
+# First I created a subset of just the age variable so I could filter out the text responses and convert this variable to numeric. After examining the variable, I saw the 3 text responses so I'm going to filter those out here:
+
+age_subset <- ccl %>% 
+  select(age) %>% 
+  filter(age != "70 (Retired)") %>% 
+  filter(age != "Older than you") %>% 
+  filter(age != "over 60") 
+
+#Convert the age variable to numeric
+age_subset <- age_subset %>% 
+  mutate(age = as.numeric(age)) %>% 
+  drop_na()
+
+# Find descriptives
+#mean(age_subset$age) # 60.45
+#sd(age_subset$age) # 16.84
+#min(age_subset$age) # 18
+#max(age_subset$age) # 84
+#median(age_subset$age) # 66
+```
+
+
+## Gender
+
+```{r, message=FALSE, warning=FALSE}
+ccl%>% 
+  group_by(gender) %>% 
+  summarise(count = n(),
+            percent = n()/(161)*100) %>% 
+  kable(col.names = c("Gender",
+                      "Counts",
+                      "Percent")) %>% 
+  kable_styling(bootstrap_options = "striped", full_width = FALSE, position = "left")
+```
+
+
+## Race/Ethnicity
+
+```{r, message=FALSE, warning=FALSE}
+ccl %>% 
+  group_by(race) %>% 
+  summarize(count = n(),
+            percent = n()/161*100) %>% 
+  kable(col.names = c("Race/Ethnicity",
+                      "Counts",
+                      "Percent")) %>% 
+  kable_styling(bootstrap_options = "striped", full_width = FALSE, position = "left") 
+
+```
+
+```{r, message=FALSE, warning=FALSE}
+# Multi-racial (open-ended)
+ccl %>% 
+  group_by(race_6_text) %>% 
+  summarise(count = n()) %>% 
+  kable(col.names = c("Race/Ethnicity: Multi-racial - Text",
+                      "Counts")) %>% 
+  kable_styling(bootstrap_options = "striped", full_width = FALSE, position = "left")
+
+# Other (open-ended)
+ccl %>% 
+  group_by(race_7_text) %>% 
+  summarise(count = n()) %>% 
+  kable(col.names = c("Race/Ethnicity: Other - Text",
+                      "Counts")) %>% 
+  kable_styling(bootstrap_options = "striped", full_width = FALSE, position = "left")
+
+```
+
+
+## Household income
+
+Median household income category was 5: $50,001 to $75,000.
+```{r, message=FALSE, warning=FALSE}
+
+#First, change family income into a factor variable
+
+ccl <- ccl %>% 
+  mutate(fam_inc_num = case_when(
+    fam_inc == "Under $15,000" ~ 1,
+    fam_inc == "$15,001 - $25,000" ~ 2,
+    fam_inc == "$25,001 - $35,000" ~ 3,
+    fam_inc == "$35,001 - $50,000" ~ 4, 
+    fam_inc == "$50,001 - $75,000" ~ 5,
+    fam_inc == "$75,001 - $100,000" ~ 6, 
+    fam_inc == "$100,001 - $150,000" ~ 7,
+    fam_inc == "$Over 150,000" ~ 8))
+
+#median(ccl$fam_inc_num, na.rm = TRUE) # 5
+#min(ccl$fam_inc_num, na.rm = TRUE) # 1
+#max(ccl$fam_inc_num, na.rm = TRUE) # 7
+
+# Table
+ccl %>% 
+  group_by(fam_inc) %>% 
+  summarise(count = n(),
+            percent = n()/161*100) %>% 
+  kable(col.names = c("Household Income",
+                      "Counts",
+                      "Percent")) %>% 
+  kable_styling(bootstrap_options = "striped", full_width = FALSE, position = "left")
+
+```
+
+
+## Political ideology
+
+*M* on 5-point scale (1-Very liberal to 5-Very conservative): 2.17, *SD* = 0.80.
+```{r, message=FALSE, warning=FALSE}
+
+ccl %>% 
+  group_by(ideology) %>% 
+  summarise(count = n(),
+            percent = n()/161*100) %>% 
+  kable(col.names = c("Political Ideology",
+                      "Counts",
+                      "Percent")) %>% 
+  kable_styling(bootstrap_options = "striped", full_width = FALSE, position = "left")
+
+#mean(ccl$lib_con_num, na.rm = TRUE) #2.17
+#sd(ccl$lib_con_num, na.rm = TRUE) #0.80
+
+```
+
+
+## Political party
+
+*M* on 7-point scale (1-Strong Democrat to 7-Strong Republican): 2.16, *SD* = 1.29.
+```{r, message=FALSE, warning=FALSE}
+
+ccl %>% 
+  group_by(pol_7_pt_char) %>% 
+  summarise(count = n(),
+            percent = n()/161*100) %>% 
+  kable(col.names = c("Political Party Identification",
+                      "Counts",
+                      "Percent")) %>% 
+  kable_styling(bootstrap_options = "striped", full_width = FALSE, position = "left")
+
+#mean(ccl$pol_7_pt) #2.16
+#sd(ccl$pol_7_pt) #1.29
+```
+
+
