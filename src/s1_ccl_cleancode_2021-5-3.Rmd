@@ -1,7 +1,7 @@
 ---
-title: 'S1: CCL Final Analyses'
+title: 'S1 CCL: Final Results for Manuscript'
 author: "Michelle Shteyn Handy"
-date: "4/28/2021"
+date: "5/3/2021"
 output: 
   html_document:
     toc: true
@@ -10,7 +10,6 @@ output:
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
 
 #Attach packages
 library(tidyverse)
@@ -25,14 +24,6 @@ library(nlme)
 library(emmeans)
 library(forcats)
 ```
-
-4-28-2021 notes
-
-for main analysis: also find SE, 95%CI
-for interactions: also find SE, 95% CI, effect size
-resource on plotting means and error bars: http://www.cookbook-r.com/Graphs/Plotting_means_and_error_bars_(ggplot2)/
-
-make 2 finalized interaction plots: (libcon*condition on projection), and libcon*condition on stereotyping, with error bars
 
 
 # Read in data and initial wrangling
@@ -60,7 +51,8 @@ ccl <- ccl[-c(1:2),] %>%
   clean_names() %>% 
   mutate(progress = as.numeric(progress), 
          duration_in_seconds = as.numeric(duration_in_seconds),
-         duration_in_minutes = duration_in_seconds/60) 
+         duration_in_minutes = duration_in_seconds/60) %>% 
+  rename(exp_condition = group)
 ```
 
 ## Data cleaning
@@ -76,9 +68,9 @@ ccl <- ccl %>%
   mutate(remove = ifelse(duration_in_minutes >= 5 & duration_in_minutes <= 120 & progress >= 90, "Keep", "Remove"))
 
 #14 people got removed from the Different condition, 9 from Similar, 102 didn't take the survey long enough to get assigned a condition
-ccl %>% 
-  group_by(remove, group) %>% 
-  summarise(counts = n())
+#ccl %>% 
+#  group_by(remove, exp_condition) %>% 
+ # summarise(counts = n())
 
 #this confirms 125 people got removed
 ccl <- ccl %>% 
@@ -88,10 +80,7 @@ ccl <- ccl %>%
 
 # Create a new row called `id` which assigns each Ss an ID number based on the row they are in
 ccl<- ccl %>% 
-  mutate(id = row_number()) %>% 
-  rename(exp_condition = group)
-
-## ALL OF THE ABOVE IS CORRECT
+  mutate(id = row_number()) 
 
 ```
 
@@ -334,10 +323,9 @@ ccl <- ccl %>%
 
 ```
 
+## Explore reason rankings
 
-## Create secondary DVs
-
-### First, examine top 2-3 rankings for self, typical businessman, for Robert
+### Examine top 2-3 rankings for self, typical businessman, for Robert
 
 For **self**, participants ranked reasons 7, 8, and 6 as most important on average:
 
@@ -351,10 +339,10 @@ For **stereotype**, participants ranked reasons 2, 3, and 1 as most important on
 - 3: "It will prevent communities and local businesses from losing billions of dollars on damages caused by climate-change related disasters."    
 - 1: "It will drive innovation and put our country on the forefront of a transition to a clean energy economy."
 
-For **Robert**, participants ranked reasons 2, 3, and 1 as most important on average.  
+For **Robert**, participants ranked reasons 2, 3, and 1 as most important on average. 
+
 
 ```{r, message=FALSE, warning=FALSE}
-
 
 # Use `pivot_longer()` to make the data tidy and have variables for: reason_number, self_rankings, stereotype_rankings, robert_rankings
 ccl_long <- ccl %>% 
@@ -383,57 +371,6 @@ mean_freq_robert<- top_reasons%>%
   group_by(reason_number) %>% 
   summarize(mean_robert_ranking = mean(robert_rankings))
 
-```
-
-
-### Compute alt. projection and alt. stereotyping 
-
-I will average participants' rankings of 7,8,6 *for Robert* as projection, and participants' rankings of 2, 3, 1 *for Robert* as stereotyping.  
-
-- **NOTE**: The Cronbach's alphas for the 2 pairs of 3 items are low (for 7,8,6 across self, group, and Robert rankings, alpha = .48; for 2,3,1 across self, group, and Robert rankings, alpha = .46). 
-
-
-```{r, message=FALSE, warning=FALSE}
-
-# Calculate alpha of s6, s7, s8 to see if the items hang together for self
-self_678 <- ccl %>% 
-  select(s6,s7,s8)
-#alpha(self_678) #alpha = .10, 95% CI [-.14, .34]
-
-# Calculate alpha of g1, g2, g3 to see if the items hang together for typical group member
-group_123 <- ccl %>% 
-  select(g1,g2,g3)
-#alpha(group_123) #alpha = .17, 95% CI [-.05, .40]
-
-# Look at alphas for Robert since those are the items I will create the scales from
-robert_678 <- ccl %>% 
-  select(r6,r7,r8)
-#alpha(robert_678) #alpha = .28, 95% CI [.09, .47]
-
-robert_123<-ccl %>% 
-  select(r1,r2,r3)
-#alpha(robert_123) #alpha = .16, 95% CI [-.07, .38]
-
-
-#Overall, do 1,2,3 hang together and do 6,7,8 hang together?
-
-sgr_678 <- ccl %>% 
-  select(s6,s7,s8,g6,g7,g8,r6,r7,r8)
-#alpha(sgr_678) #alpha = .49, 95% CI [.36, .61]
-
-sgr_123 <- ccl %>% 
-  select(s1,s2,s3,g1,g2,g3,r1,r2,r3)
-#alpha(sgr_123) #alpha = .47, 95% CI [.35, .59]
-
-```
-
-
-```{r, message=FALSE, warning=FALSE}
-# Create the DVs using `mutate` function
-
-ccl <- ccl %>% 
-  mutate(projection_678 = (r6+r7+r8)/3, 
-         stereotyping_123 = (r1+r2+r3)/3) 
 ```
 
 
@@ -551,8 +488,8 @@ ccl %>%
                       "Percent")) %>% 
   kable_styling(bootstrap_options = "striped", full_width = FALSE, position = "left")
 
-
 ```
+
 
 ## Counts in each experimental condition
 
@@ -585,7 +522,7 @@ ccl_long <- ccl %>%
 
 #Create subset with key variables
 key_variables<-ccl_long %>% 
-  select(id,reason_number,exp_condition,s,g,r, pol_7_pt, dem_rep, gender_bin,lib_con_num, lib_con,projection_678, stereotyping_123) %>% 
+  select(id,reason_number,exp_condition,s,g,r, pol_7_pt, dem_rep, gender_bin,lib_con_num, lib_con) %>% 
   rename(self_rankings = s,
          stereotype_rankings = g,
          robert_rankings = r) %>% 
@@ -615,8 +552,8 @@ for (i in 1:nrow(key_variables)) {
   temp_stereotype_rankings<-tidy_temp_lm[3,2]
   
   # The last two lines store the variables created above in columns in the original dataframe in the row that the for loop is currently on
-  key_variables[i, 14]<-temp_self_rankings
-  key_variables[i, 15]<-temp_stereotype_rankings
+  key_variables[i, 12]<-temp_self_rankings
+  key_variables[i, 13]<-temp_stereotype_rankings
 }
 
 ```
@@ -631,38 +568,24 @@ key_variables %>%
   summarize(mean_projection = mean(projection),
             sd_projection = sd(projection),
             mean_stereotyping = mean(stereotyping, na.rm = TRUE),
-            sd_stereotyping = sd(stereotyping, na.rm = TRUE),
-            mean_alt_projection = mean(projection_678),
-            sd_alt_projection = sd(projection_678),
-            mean_alt_stereotyping = mean(stereotyping_123),
-            sd_alt_stereotyping = sd(stereotyping_123)) %>% 
+            sd_stereotyping = sd(stereotyping, na.rm = TRUE)) %>% 
     kable(col.names = c("Experimental Condition",
                       "Ames Projection (M)",
                       "Ames Projection (SD)",
                       "Ames Stereotyping (M)",
-                      "Ames Stereotyping (SD)",
-                      "Alt Projection (M)",
-                      "Alt Projection (SD)",
-                      "Alt Stereotyping (M)",
-                      "Alt Stereotyping (SD)")) %>% 
+                      "Ames Stereotyping (SD)")) %>% 
   kable_styling(bootstrap_options = "striped", full_width = FALSE, position = "left")
 
 
 ```
 
 
-# Main analyses
+# 2 x 2 Mixed ANOVA: Condition on Ames DV
 
-## 1) Condition on Ames DV: 2 x 2 Mixed ANOVA
-
-Test the effect of experimental condition (similar vs. dissimilar) and the within-subjects factor of stereotyping and projection ranking items on participants' stereotyping and projection scores.
-
-Use [this resource](http://www.cookbook-r.com/Graphs/Plotting_means_and_error_bars_(ggplot2)/) on plotting means and error bars. That resource is a follow up to [this one](http://www.cookbook-r.com/Manipulating_data/Summarizing_data/) about summarizing data.
-
-summary Se within: https://www.rdocumentation.org/packages/Rmisc/versions/1.5/topics/summarySEwithin
-
+## Create subset of variables for key analysis
 
 ```{r, message=FALSE, warning=FALSE}
+
 # Create a subset of only the variables I need for this analysis: id, exp_condition, projection scores, and stereotyping scores
 # Gather the columns projection and stereotyping into long format.
 # Convert id and exp_condition into factor variables
@@ -677,13 +600,14 @@ anova_data <- key_variables %>%
 
 ```
 
-There was no significant interaction between experimental condition and the within-subjects factor of projection/stereotyping on projection and stereotyping scores, *F*(1,158) = 0.68443, *p* = .4093. Participants in the similarity condition did NOT show significantly greater projection than those in the dissimilarity condition (0.0937 vs. 0.0788), *t*(158) = 0.211, *p* = .9967, or significantly less stereotyping than those in the dissimilarity condition (0.4990 vs. 0.5638), *t*(158) = -.915, *p* = .7967.
+## Conduct the ANOVA and contrasts
 
 ```{r, message=FALSE, warning=FALSE}
 
 #2-WAY REPEATED MEASURES ANOVA
 ames_anova <- lme(score ~ ranking * exp_condition, random=~1|id, data = anova_data) 
 anova(ames_anova) 
+
 
 #Post-Hoc Tests: Multiple Comparisons in Linear Mixed Effect Models
 
@@ -697,54 +621,288 @@ anova(ames_anova)
 
 ```
 
-## Condition on Alt DVs: Independent-Samples T-tests
+## Report results
 
-There was no significant effect of experimental condition on the alternative DV of projection (selecting environmental reasons as important to Robert), *t*(159) = -1.5132, *p* = 0.1322. Participants in the similarity condition did not project significantly more than those in the difference condition (Means: 3.667 vs. 3.333 respectively).
+The hypothesis was not supported: participants in the similarity condition neither showed significantly greater projection (M = 0.0937, SD = .45) than those in the dissimilarity condition (M = 0.0788, SD = .43), t(158) = .21, p = .99, **SE = .049, 95% CI = [.097, .10],  nor significantly less stereotyping (M = 0.4990, SD = 0.47)  than those in the dissimilarity condition (M = 0.5638, SD = 0.43), t(158) = -.92, p = .80, SE = .050, 95% CI = [.096, .104]. This result was confirmed by the two-way mixed ANOVA: no significant interaction was found between experimental condition and the within-subjects factor on projection and stereotyping scores, F(1,158) = .68, p = .41.
 
-There was no significant effect of experimental condition on the alternative DV of stereotyping (selecting business reasons as important to Robert), *t*(159) = 1.0871, *p* = 0.2786. Participants in the dissimilarity condition did not stereotype significantly more than those in the similarity condition (Means: 5.755 vs. 5.561 respectively).
+
+## Calculate the SE and 95% CI for within-subjects
+
+Used [this resource](http://www.cookbook-r.com/Graphs/Plotting_means_and_error_bars_(ggplot2)/) on plotting means and error bars in ggplot2. **NOTE**: It uses `Rmisc::summarySE()` which creates some conflicts with `here` and `dplyr`. Might need to install and uninstall `Rmisc` and `plyr` after I obtain these stats and make the graphs, comment out code that wont run, or use package::function notation.
+
+[Another resource](https://johanneskarl.netlify.app/post/errors/withing-and-between-subjects-errors/) on plotting within subjects errors.
+
+
+### First, install 3 helper functions:
+
+#### 1) SummarySE
+
+```{r, message=FALSE, warning=FALSE}
+## Gives count, mean, standard deviation, standard error of the mean, and confidence interval (default 95%).
+##   data: a data frame.
+##   measurevar: the name of a column that contains the variable to be summariezed
+##   groupvars: a vector containing names of columns that contain grouping variables
+##   na.rm: a boolean that indicates whether to ignore NA's
+##   conf.interval: the percent range of the confidence interval (default is 95%)
+summarySE <- function(data=NULL, measurevar, groupvars=NULL, na.rm=FALSE,
+                      conf.interval=.95, .drop=TRUE) {
+    library(plyr)
+
+    # New version of length which can handle NA's: if na.rm==T, don't count them
+    length2 <- function (x, na.rm=FALSE) {
+        if (na.rm) sum(!is.na(x))
+        else       length(x)
+    }
+
+    # This does the summary. For each group's data frame, return a vector with
+    # N, mean, and sd
+    datac <- ddply(data, groupvars, .drop=.drop,
+      .fun = function(xx, col) {
+        c(N    = length2(xx[[col]], na.rm=na.rm),
+          mean = mean   (xx[[col]], na.rm=na.rm),
+          sd   = sd     (xx[[col]], na.rm=na.rm)
+        )
+      },
+      measurevar
+    )
+
+    # Rename the "mean" column    
+    datac <- rename(datac, c("mean" = measurevar))
+
+    datac$se <- datac$sd / sqrt(datac$N)  # Calculate standard error of the mean
+
+    # Confidence interval multiplier for standard error
+    # Calculate t-statistic for confidence interval: 
+    # e.g., if conf.interval is .95, use .975 (above/below), and use df=N-1
+    ciMult <- qt(conf.interval/2 + .5, datac$N-1)
+    datac$ci <- datac$se * ciMult
+
+    return(datac)
+}
+```
+
+#### 2) NormDataWithin
 
 ```{r, message=FALSE, warning=FALSE}
 
-projection_678_ttest<- t.test(projection_678 ~ exp_condition, data = ccl, var.equal = TRUE)
-#projection_678_ttest
+## Norms the data within specified groups in a data frame; it normalizes each
+## subject (identified by idvar) so that they have the same mean, within each group
+## specified by betweenvars.
+##   data: a data frame.
+##   idvar: the name of a column that identifies each subject (or matched subjects)
+##   measurevar: the name of a column that contains the variable to be summariezed
+##   betweenvars: a vector containing names of columns that are between-subjects variables
+##   na.rm: a boolean that indicates whether to ignore NA's
+normDataWithin <- function(data=NULL, idvar, measurevar, betweenvars=NULL,
+                           na.rm=FALSE, .drop=TRUE) {
+    library(plyr)
 
-stereotyping_123_ttest<- t.test(stereotyping_123 ~ exp_condition, data = ccl, var.equal = TRUE)
-#stereotyping_123_ttest
+    # Measure var on left, idvar + between vars on right of formula.
+    data.subjMean <- ddply(data, c(idvar, betweenvars), .drop=.drop,
+     .fun = function(xx, col, na.rm) {
+        c(subjMean = mean(xx[,col], na.rm=na.rm))
+      },
+      measurevar,
+      na.rm
+    )
+
+    # Put the subject means with original data
+    data <- merge(data, data.subjMean)
+
+    # Get the normalized data in a new column
+    measureNormedVar <- paste(measurevar, "_norm", sep="")
+    data[,measureNormedVar] <- data[,measurevar] - data[,"subjMean"] +
+                               mean(data[,measurevar], na.rm=na.rm)
+
+    # Remove this subject mean column
+    data$subjMean <- NULL
+
+    return(data)
+}
+
+
+
+```
+
+#### 3) SummarySEwithin
+
+
+```{r, warning=FALSE, message=FALSE}
+
+
+# The function (Rmisc::summarySEwithin) computes the errors accounting for the non-independent nature of the observations.
+
+## Summarizes data, handling within-subjects variables by removing inter-subject variability.
+## It will still work if there are no within-S variables.
+## Gives count, un-normed mean, normed mean (with same between-group mean),
+##   standard deviation, standard error of the mean, and confidence interval.
+## If there are within-subject variables, calculate adjusted values using method from Morey (2008).
+##   data: a data frame.
+##   measurevar: the name of a column that contains the variable to be summarized
+##   betweenvars: a vector containing names of columns that are between-subjects variables
+##   withinvars: a vector containing names of columns that are within-subjects variables
+##   idvar: the name of a column that identifies each subject (or matched subjects)
+##   na.rm: a boolean that indicates whether to ignore NA's
+##   conf.interval: the percent range of the confidence interval (default is 95%)
+summarySEwithin <- function(data=NULL, measurevar, betweenvars=NULL, withinvars=NULL,
+                            idvar=NULL, na.rm=FALSE, conf.interval=.95, .drop=TRUE) {
+
+  # Ensure that the betweenvars and withinvars are factors
+  factorvars <- vapply(data[, c(betweenvars, withinvars), drop=FALSE],
+    FUN=is.factor, FUN.VALUE=logical(1))
+
+  if (!all(factorvars)) {
+    nonfactorvars <- names(factorvars)[!factorvars]
+    message("Automatically converting the following non-factors to factors: ",
+            paste(nonfactorvars, collapse = ", "))
+    data[nonfactorvars] <- lapply(data[nonfactorvars], factor)
+  }
+
+  # Get the means from the un-normed data
+  datac <- summarySE(data, measurevar, groupvars=c(betweenvars, withinvars),
+                     na.rm=na.rm, conf.interval=conf.interval, .drop=.drop)
+
+  # Drop all the unused columns (these will be calculated with normed data)
+  datac$sd <- NULL
+  datac$se <- NULL
+  datac$ci <- NULL
+
+  # Norm each subject's data
+  ndata <- normDataWithin(data, idvar, measurevar, betweenvars, na.rm, .drop=.drop)
+
+  # This is the name of the new column
+  measurevar_n <- paste(measurevar, "_norm", sep="")
+
+  # Collapse the normed data - now we can treat between and within vars the same
+  ndatac <- summarySE(ndata, measurevar_n, groupvars=c(betweenvars, withinvars),
+                      na.rm=na.rm, conf.interval=conf.interval, .drop=.drop)
+
+  # Apply correction from Morey (2008) to the standard error and confidence interval
+  #  Get the product of the number of conditions of within-S variables
+  nWithinGroups    <- prod(vapply(ndatac[,withinvars, drop=FALSE], FUN=nlevels,
+                           FUN.VALUE=numeric(1)))
+  correctionFactor <- sqrt( nWithinGroups / (nWithinGroups-1) )
+
+  # Apply the correction factor
+  ndatac$sd <- ndatac$sd * correctionFactor
+  ndatac$se <- ndatac$se * correctionFactor
+  ndatac$ci <- ndatac$ci * correctionFactor
+
+  # Combine the un-normed means with the normed results
+  merge(datac, ndatac)
+}
+
+
+within <- Rmisc::summarySEwithin(data = anova_data, measurevar = "score",
+                                 betweenvars = "exp_condition",
+                                 withinvars = "ranking",
+                                 idvar = "id")
+
+within
+
+between <- Rmisc::summarySE(anova_data, measurevar="score", groupvars=c("ranking","exp_condition"))
+between
 
 ```
 
 
-# Moderation analyses
+## Visualize the 2x2 Mixed ANOVA
 
-## Lib/Con on Ames Stereotyping/Projection and 3 and 3
+### First, make sure the data is in long format (already is)
+### Then, summarize the data with `summarySEwithin()` and make the graph
+
+Note that I get different output if I use the `within` and `between` functions. The first is within, the second is between. The within-subjects errors are considerably smaller as a result of accounting for the non-independence. 
+
+Adjusts the error bars so that inter-subject variability is removed as in Loftus and Masson (1994).
+```{r, warning=FALSE, message=FALSE}
+
+## Summarize the data using `summarySE()`
+within <- Rmisc::summarySEwithin(data = anova_data, measurevar = "score",
+                                 betweenvars = "exp_condition",
+                                 withinvars = "ranking",
+                                 idvar = "id")
+
+within
+
+##Note that I get different results if I do it with the between function:
+between <- Rmisc::summarySE(anova_data, measurevar="score", groupvars=c("ranking","exp_condition"))
+between
+
+#The first function (Rmisc::summarySE) computes errors without considering that #the observations are not independent. The second function #(Rmisc::summarySEwithin) computes the errors accounting for the non-independent #nature of the observations
+
+## This is plotting the 'within' summarized data. The means are different from what I've found when doing group_by::summarize. It looks like summarySEwithin() reports the means AFTER controlling for variability within individuals.
+## Error bars represent standard error of the mean
+ggplot(within, aes(x=ranking, y=score, fill=exp_condition)) + 
+    geom_bar(position=position_dodge(), stat="identity",
+             colour="black", # Use black outlines,
+             size=.3) + # Thinner lines
+    geom_errorbar(aes(ymin=score-se, ymax=score+se),
+                  size=.3,    # Thinner lines
+                  width=.2,
+                  position=position_dodge(.9)) +
+    xlab("") +
+    ylab("Mean standardized beta") +
+    scale_fill_hue(name="Experimental condition", # Legend label, use darker colors
+                   breaks=c("Similar", "Different"),
+                   labels=c("Similarity", "Dissimilarity")) +
+    ggtitle("Projection and Stereotyping as a\nfunction of Experimental Condition") +
+    scale_y_continuous() +
+     scale_x_discrete(breaks=c("projection","stereotyping"),
+        labels=c("Projection", "Stereotyping"))+
+    theme_classic() +
+    scale_y_continuous(expand = c(0,0),
+                       breaks = seq(0,0.9,0.1))
+
+
+# Save the ggplot
+ggsave(here::here("figures", "ames_anova_viz_all_within.png"), width = 5, height = 5)
+
+
+## Plot the between group means with within-subj errors:
+##Error bars represent standard error of the mean
+ggplot(between, aes(x=ranking, y=score, fill=exp_condition)) + 
+    geom_bar(position=position_dodge(), stat="identity",
+             colour="black", # Use black outlines,
+             size=.3) + # Thinner lines
+    geom_errorbar(aes(ymin=score-se, ymax=score+se),
+                  size=.3,    # Thinner lines
+                  width=.2,
+                  position=position_dodge(.9), data = within) +
+    xlab("") +
+    ylab("Mean standardized beta") +
+    scale_fill_hue(name="Experimental condition", # Legend label, use darker colors
+                   breaks=c("Similar", "Different"),
+                   labels=c("Similarity", "Dissimilarity")) +
+    ggtitle("Projection and Stereotyping as a\nfunction of Experimental Condition") +
+    scale_y_continuous() +
+     scale_x_discrete(breaks=c("projection","stereotyping"),
+        labels=c("Projection", "Stereotyping"))+
+    theme_classic() +
+    scale_y_continuous(expand = c(0,0),
+                       breaks = seq(0,0.9,0.1))
+
+# Save the ggplot
+ggsave(here::here("figures", "ames_anova_viz_between_withinerrorbars.png"), width = 5, height = 5)
+
+```
+*Note*. Error bars show standard errors.
+
+
+# Moderation analysis: Lib/Con on Ames Stereotyping/Projection (2-Way between-subjects ANOVA)
 
 AMES PROJECTION:
 The interaction between experimental condition and lib/con on the Ames measure of projection approached significance, *F*(1,152) = 2.85, *p* = .0934. Paired contrasts showed that in the dissimilarity condition, there was a significant difference in conservatives' and liberals' level of projection such that conservatives projected more by 0.2158 than liberals, on average, (Ms: .2018 vs. -0.0140, respectively) *t*(152) = 2.084, *p* = 0.0388. All other paired contrasts were not significant. 
 
-This analysis was examined with political ideology as a continuous variable from 1 (Very Liberal) to 4 (Conservative). The interaction between ideology and experimental condition on projection was significant, *F*(3,148) = 3.974, *p* = .00929.
 
 AMES STEREOTYPING:
 The interaction between experimental condition and lib/con on the Ames measure of stereotyping approached significance, *F*(1,151) = 3.358, *p* = .0689. Paired contrasts showed that, for liberals, the effect of experimental condition on stereotyping approached significance such that liberals in the dissimilarity condition stereotyped 0.147 units more on average than those liberals in the similarity condition (Ms: 0.615 vs. 0.468), *t*(151) = 1.658, *p* = 0.0993. All other paired contrasts were not significant.
 
-This analysis was examined with political ideology as a continuous variable from 1 (Very Liberal) to 4 (Conservative). The interaction between ideology and experimental condition on stereotyping was not significant, *F*(3,147) = 1.199, *p* = .312.
 
+```{r, warning=FALSE, message=FALSE, results='hide'}
 
-PROJECTION 678:
-The interaction between experimental condition and lib/con on the alternative measure of projection approached significance, *F*(1,152) = 3.819, *p* = .0525. Paired contrasts showed that, for liberals, the effect of experimental condition on projection was significant such that those in the similarity condition projected 0.647 units more on average than those in the dissimilarity condition (Ms: 3.76 vs. 3.12), *t*(152) = -2.355, *p* = 0.0198. All other paired contrasts were not significant.
-
-This analysis was examined with political ideology as a continuous variable from 1 (Very Liberal) to 4 (Conservative). The interaction between ideology and experimental condition on the alternative measure of projection was not significant, *F*(3,148) = 1.377, *p* = .252.
-
-
-STEREOTYPING 123: 
-The interaction between experimental condition and lib/con on the alternative measure of stereotyping was significant, *F*(1,152) = 4.105, *p* = .0445. Paired contrasts revealed that, for liberals, the effect of experimental condition on stereotyping was significant such that those in the dissimilarity condition stereotyped about 0.457 units more on average than those in the similarity condition (Ms: 5.92 vs. 5.46), *t* = 2.067, *p* = 0.0404. All other paired contrasts were not significant.
-
-This analysis was examined with political ideology as a continuous variable from 1 (Very Liberal) to 4 (Conservative). The interaction between ideology and experimental condition on the alternative measure of stereotyping was not significant, *F*(3,148) = 1.339, *p* = .264.
-
-
-
-```{r, message=FALSE,warning=FALSE, results='hide'}
+## Create a subset of variables I need
 libcon_subset <- key_variables %>% 
-  select(id, lib_con, lib_con_num, pol_7_pt, dem_rep, exp_condition, projection, stereotyping, projection_678, stereotyping_123) %>% 
+  select(id, lib_con, lib_con_num, pol_7_pt, dem_rep, exp_condition, projection, stereotyping) %>% 
   unique()
 
 # Ames Projection and Stereotyping:
@@ -771,162 +929,79 @@ contrasts2
 contrasts2_pairs <- emmeans(libcon2, ~ exp_condition*lib_con)
 pairs(contrasts2_pairs, simple = "each")
 
-# Linear Regression
-
-#Two-way anova: lib_con (lib vs. con) and Condition (Sim/Diff) on projection:
-libcon1a <- aov(projection ~ lib_con_num + exp_condition + lib_con_num:exp_condition, data = libcon_subset)
-summary(libcon1a)
-
-libcon1aa <- libcon1a <- aov(projection ~ pol_7_pt + exp_condition + pol_7_pt:exp_condition, data = libcon_subset)
-summary(libcon1aa)
-
-#Two-way anova: lib_con (lib vs. con)  and Condition (Sim/Diff) on stereotyping:
-libcon2a <- aov(stereotyping ~ lib_con_num  + exp_condition + lib_con_num:exp_condition, data = libcon_subset)
-summary(libcon2a)
-
-libcon2aa <- aov(stereotyping ~ pol_7_pt + exp_condition + pol_7_pt:exp_condition, data = libcon_subset)
-summary(libcon2aa)
-
-
-#3 and 3 Projection and Stereotyping:
-
-#Two-way anova: lib_con (lib vs. con) and Condition (Sim/Diff) on projection_678:
-libcon3 <- aov(projection_678 ~ lib_con + exp_condition + lib_con:exp_condition, data = libcon_subset)
-summary(libcon3)
-
-#Two-way anova: lib_con (lib vs. con)  and Condition (Sim/Diff) on stereotyping_123:
-libcon4 <- aov(stereotyping_123 ~ lib_con  + exp_condition + lib_con:exp_condition, data = libcon_subset)
-summary(libcon4)
-
-
-# CONTRASTS
-contrasts3 <- emmeans(libcon3, pairwise ~ exp_condition*lib_con)
-contrasts3
-
-contrasts3_pairs <- emmeans(libcon3, ~ exp_condition*lib_con)
-pairs(contrasts3_pairs, simple = "each")
-
-contrasts4 <- emmeans(libcon4, pairwise ~ exp_condition*lib_con)
-contrasts4
-
-contrasts4_pairs <- emmeans(libcon4, ~ exp_condition*lib_con)
-pairs(contrasts4_pairs, simple = "each")
-
-# Linear Regression
-
-#Two-way anova: lib_con (lib vs. con) and Condition (Sim/Diff) on projection_678:
-libcon3a <- aov(projection_678 ~ lib_con_num + exp_condition + lib_con_num:exp_condition, data = libcon_subset)
-summary(libcon3a)
-
-libcon3aa <- aov(projection_678 ~ pol_7_pt + exp_condition + pol_7_pt:exp_condition, data = libcon_subset)
-summary(libcon3aa)
-
-#Two-way anova: lib_con (lib vs. con)  and Condition (Sim/Diff) on stereotyping_123:
-libcon4a <- aov(stereotyping_123 ~ lib_con_num  + exp_condition + lib_con_num:exp_condition, data = libcon_subset)
-summary(libcon4a)
-
-libcon4aa <- aov(stereotyping_123 ~ pol_7_pt + exp_condition + pol_7_pt:exp_condition, data = libcon_subset)
-summary(libcon4aa)
 ```
 
+## Visualize the Ideology*Condition Interaction on PROJECTION
 
-## Visualize these
-
+Plot with error bars. I can do regular between (not within) `summarySE()` since I am plotting a between-subjects two-way ANOVA.
 ```{r, message=FALSE, warning=FALSE}
-libcon <- libcon_subset %>% 
-  select(id, lib_con, exp_condition, projection, stereotyping, projection_678, stereotyping_123) %>% 
+libcon_subset <- libcon_subset %>% 
   drop_na()
 
+# First, summarize the data using `summarySE()`:
+lib_con_projection<- Rmisc::summarySE(libcon_subset, measurevar="projection", groupvars=c("lib_con","exp_condition"))
+lib_con_projection
 
-grouped_lib_con <- libcon %>% 
-  group_by(lib_con, exp_condition) %>% 
-  summarize(mean_projection = mean(projection),
-            mean_projection_678 = mean(projection_678),
-            mean_stereotyping = mean(stereotyping),
-            mean_stereotyping_123 = mean(stereotyping_123)) 
+##Error bars represent standard error of the mean
+ggplot(lib_con_projection, aes(x=lib_con, y=projection, fill=exp_condition)) + 
+    geom_bar(position=position_dodge(), stat="identity",
+             colour="black", # Use black outlines,
+             size=.3) + # Thinner lines
+    geom_errorbar(aes(ymin=projection-se, ymax=projection+se),
+                  size=.3,    # Thinner lines
+                  width=.2,
+                  position=position_dodge(.9)) +
+    xlab("") +
+    ylab("Mean standardized beta") +
+    scale_fill_hue(name="Experimental condition", # Legend label, use darker colors
+                   breaks=c("Similar", "Different"),
+                   labels=c("Similarity", "Dissimilarity")) +
+    ggtitle("Projection as function of\nExperimental Condition and Political Ideology") +
+    scale_y_continuous() +
+    theme_classic() 
 
-
-# On projection
-ggplot(data=grouped_lib_con, aes(x = as.factor(lib_con), y = mean_projection, fill = exp_condition))+
-  geom_bar(stat = "identity", position = "dodge")+
-  theme(axis.title.x = element_blank())+
-  labs(title = "Effect of Similarity Condition and Lib/Con on Projection",
-       y = "Mean standardized beta")
-
-# On alt projection
-ggplot(data=grouped_lib_con, aes(x = lib_con, y = mean_projection_678, fill = exp_condition))+
-  geom_bar(stat = "identity", position = "dodge")+
-  theme(axis.title.x = element_blank())+
-  labs(title = "Effect of Similarity Condition and Lib/Con on Alt DV Projection",
-       y = "Mean ranking")
-
-
-# On stereotyping
-ggplot(data=grouped_lib_con, aes(x = as.factor(lib_con), y = mean_stereotyping, fill = exp_condition))+
-  geom_bar(stat = "identity", position = "dodge")+
-  theme(axis.title.x = element_blank())+
-  labs(title = "Effect of Similarity Condition and Lib/Con on Stereotyping",
-       y = "Mean standardized beta")
-
-
-# On alt stereotyping
-ggplot(data=grouped_lib_con, aes(x = lib_con, y = mean_stereotyping_123, fill = exp_condition))+
-  geom_bar(stat = "identity", position = "dodge")+
-  theme(axis.title.x = element_blank())+
-  labs(title = "Effect of Similarity Condition and Lib/Con on Alt DV Stereotyping",
-       y = "Mean Ranking")
-
+# Save the ggplot
+ggsave(here::here("figures", "libcon_projection.png"), width = 5, height = 5)
 
 ```
+*Note*. Error bars show standard errors. 101 Liberals and 40 Moderates/Conservatives were included in the analysis.
 
 
-## Dem/Rep x Condition
+## Visualize the Ideology*Condition Interaction on STEREOTYPING
+
 
 ```{r, message=FALSE, warning=FALSE}
-demrep <- libcon_subset %>% 
-  select(id, dem_rep, exp_condition, projection, stereotyping, projection_678, stereotyping_123) %>% 
-  drop_na()
 
+# First, summarize the data using `summarySE()`:
+lib_con_stereotyping<- Rmisc::summarySE(libcon_subset, measurevar="stereotyping", groupvars=c("lib_con","exp_condition"))
+lib_con_stereotyping
 
-grouped_demrep<- demrep %>% 
-  group_by(dem_rep, exp_condition) %>% 
-  summarize(mean_projection = mean(projection),
-            mean_projection_678 = mean(projection_678),
-            mean_stereotyping = mean(stereotyping),
-            mean_stereotyping_123 = mean(stereotyping_123)) 
+##Error bars represent standard error of the mean
+ggplot(lib_con_stereotyping, aes(x=lib_con, y=stereotyping, fill=exp_condition)) + 
+    geom_bar(position=position_dodge(), stat="identity",
+             colour="black", # Use black outlines,
+             size=.3) + # Thinner lines
+    geom_errorbar(aes(ymin=stereotyping-se, ymax=stereotyping+se),
+                  size=.3,    # Thinner lines
+                  width=.2,
+                  position=position_dodge(.9)) +
+    xlab("") +
+    ylab("Mean standardized beta") +
+    scale_fill_hue(name="Experimental condition", # Legend label, use darker colors
+                   breaks=c("Similar", "Different"),
+                   labels=c("Similarity", "Dissimilarity")) +
+    ggtitle("Stereotyping as function of\nExperimental Condition and Political Ideology") +
+    scale_y_continuous(expand = c(0,0),
+                       breaks = seq(0,0.8,0.1)) +
+    theme_classic() 
 
-
-# On projection
-ggplot(data=grouped_demrep, aes(x = as.factor(dem_rep), y = mean_projection, fill = exp_condition))+
-  geom_bar(stat = "identity", position = "dodge")+
-  theme(axis.title.x = element_blank())+
-  labs(title = "Effect of Similarity Condition and DemRep on Projection",
-       y = "Mean standardized beta")
-
-# On alt projection
-ggplot(data=grouped_demrep, aes(x = dem_rep, y = mean_projection_678, fill = exp_condition))+
-  geom_bar(stat = "identity", position = "dodge")+
-  theme(axis.title.x = element_blank())+
-  labs(title = "Effect of Similarity Condition and DemRep on Alt DV Projection",
-       y = "Mean ranking")
-
-
-# On stereotyping
-ggplot(data=grouped_demrep, aes(x = as.factor(dem_rep), y = mean_stereotyping, fill = exp_condition))+
-  geom_bar(stat = "identity", position = "dodge")+
-  theme(axis.title.x = element_blank())+
-  labs(title = "Effect of Similarity Condition and DemRep on Stereotyping",
-       y = "Mean standardized beta")
-
-
-# On alt stereotyping
-ggplot(data=grouped_demrep, aes(x = dem_rep, y = mean_stereotyping_123, fill = exp_condition))+
-  geom_bar(stat = "identity", position = "dodge")+
-  theme(axis.title.x = element_blank())+
-  labs(title = "Effect of Similarity Condition and DemRep on Alt DV Stereotyping",
-       y = "Mean Ranking")
+# Save the ggplot
+ggsave(here::here("figures", "libcon_stereotyping.png"), width = 5, height = 5)
 
 ```
+*Note*. Error bars show standard errors. 101 Liberals and 40 Moderates/Conservatives were included in the analysis.
+
+
 
 # Descriptives
 
@@ -1078,5 +1153,7 @@ ccl %>%
 #mean(ccl$pol_7_pt) #2.16
 #sd(ccl$pol_7_pt) #1.29
 ```
+
+
 
 
