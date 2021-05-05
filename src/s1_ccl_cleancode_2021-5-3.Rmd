@@ -612,18 +612,18 @@ anova(ames_anova)
 #Post-Hoc Tests: Multiple Comparisons in Linear Mixed Effect Models
 
 # running emmeans()
-# emmeans(ames_anova, pairwise ~ exp_condition*ranking)
+emmeans(ames_anova, pairwise ~ exp_condition*ranking)
 
 
 # running pairs()
-#emm1 <- emmeans(ames_anova, ~ exp_condition*ranking)
-#pairs(emm1, simple = "exp_condition")
+emm1 <- emmeans(ames_anova, ~ exp_condition*ranking)
+pairs(emm1, simple = "exp_condition")
 
 ```
 
 ## Report results
 
-The hypothesis was not supported: participants in the similarity condition neither showed significantly greater projection (M = 0.0937, SD = .45) than those in the dissimilarity condition (M = 0.0788, SD = .43), t(158) = .21, p = .99, **SE = .049, 95% CI = [.097, .10],  nor significantly less stereotyping (M = 0.4990, SD = 0.47)  than those in the dissimilarity condition (M = 0.5638, SD = 0.43), t(158) = -.92, p = .80, SE = .050, 95% CI = [.096, .104]. This result was confirmed by the two-way mixed ANOVA: no significant interaction was found between experimental condition and the within-subjects factor on projection and stereotyping scores, F(1,158) = .68, p = .41.
+The hypothesis was not supported: participants in the similarity condition neither showed significantly greater projection (M = 0.0937, SD = .45) than those in the dissimilarity condition (M = 0.0788, SD = .43), t(158) = .21, p = .99, nor significantly less stereotyping (M = 0.4990, SD = 0.47) than those in the dissimilarity condition (M = 0.5638, SD = 0.43), t(158) = -.92, p = .80. This result was confirmed by the two-way mixed ANOVA: no significant interaction was found between experimental condition and the within-subjects factor on projection and stereotyping scores, F(1,158) = .68, p = .41.
 
 
 ## Calculate the SE and 95% CI for within-subjects
@@ -855,7 +855,7 @@ ggplot(within, aes(x=ranking, y=score, fill=exp_condition)) +
 
 
 # Save the ggplot
-ggsave(here::here("figures", "ames_anova_viz_all_within.png"), width = 5, height = 5)
+ggsave(here::here("figures", "ames_anova_viz_all_within.png"), width = 7, height = 5)
 
 
 ## Plot the between group means with within-subj errors:
@@ -882,7 +882,7 @@ ggplot(between, aes(x=ranking, y=score, fill=exp_condition)) +
                        breaks = seq(0,0.9,0.1))
 
 # Save the ggplot
-ggsave(here::here("figures", "ames_anova_viz_between_withinerrorbars.png"), width = 5, height = 5)
+ggsave(here::here("figures", "ames_anova_viz_between_withinerrorbars.png"), width = 7, height = 5)
 
 ```
 *Note*. Error bars show standard errors.
@@ -898,23 +898,35 @@ AMES STEREOTYPING:
 The interaction between experimental condition and lib/con on the Ames measure of stereotyping approached significance, *F*(1,151) = 3.358, *p* = .0689. Paired contrasts showed that, for liberals, the effect of experimental condition on stereotyping approached significance such that liberals in the dissimilarity condition stereotyped 0.147 units more on average than those liberals in the similarity condition (Ms: 0.615 vs. 0.468), *t*(151) = 1.658, *p* = 0.0993. All other paired contrasts were not significant.
 
 
-```{r, warning=FALSE, message=FALSE, results='hide'}
+```{r, warning=FALSE, message=FALSE}
 
 ## Create a subset of variables I need
 libcon_subset <- key_variables %>% 
-  select(id, lib_con, lib_con_num, pol_7_pt, dem_rep, exp_condition, projection, stereotyping) %>% 
+  select(id, lib_con, exp_condition, projection, stereotyping) %>% 
   unique()
 
-# Ames Projection and Stereotyping:
+## Look at descriptives
+libcon_subset %>% 
+  group_by(lib_con, exp_condition) %>% 
+  summarize(mean_projection = mean(projection),
+            sd_projection = sd(projection),
+            mean_stereotyping = mean(stereotyping, na.rm = TRUE),
+            sd_stereotyping = sd(stereotyping, na.rm = TRUE))
+
+```
+
+
+## Condition*Ideology on Projection
+
+```{r, warning=FALSE, message=FALSE}
+library(lsr)
 
 #Two-way anova: lib_con (lib vs. con) and Condition (Sim/Diff) on projection:
 libcon1 <- aov(projection ~ lib_con + exp_condition + lib_con:exp_condition, data = libcon_subset)
 summary(libcon1)
 
-
-#Two-way anova: lib_con (lib vs. con)  and Condition (Sim/Diff) on stereotyping:
-libcon2 <- aov(stereotyping ~ lib_con  + exp_condition + lib_con:exp_condition, data = libcon_subset)
-summary(libcon2)
+# Look at effect size
+eta_squared(libcon1)
 
 # CONTRASTS
 contrasts1 <- emmeans(libcon1, pairwise ~ exp_condition*lib_con)
@@ -923,13 +935,32 @@ contrasts1
 contrasts1_pairs <- emmeans(libcon1, ~ exp_condition*lib_con)
 pairs(contrasts1_pairs, simple = "each")
 
+```
+
+
+## Condition*Ideology on Stereotyping
+
+```{r, warning=FALSE, message=FALSE}
+
+#Two-way anova: lib_con (lib vs. con)  and Condition (Sim/Diff) on stereotyping:
+libcon2 <- aov(stereotyping ~ lib_con  + exp_condition + lib_con:exp_condition, data = libcon_subset)
+summary(libcon2)
+
+# Look at effect size
+eta_squared(libcon2)
+
 contrasts2 <- emmeans(libcon2, pairwise ~ exp_condition*lib_con)
 contrasts2
 
 contrasts2_pairs <- emmeans(libcon2, ~ exp_condition*lib_con)
 pairs(contrasts2_pairs, simple = "each")
 
+
 ```
+
+
+
+
 
 ## Visualize the Ideology*Condition Interaction on PROJECTION
 
@@ -943,7 +974,7 @@ lib_con_projection<- Rmisc::summarySE(libcon_subset, measurevar="projection", gr
 lib_con_projection
 
 ##Error bars represent standard error of the mean
-ggplot(lib_con_projection, aes(x=lib_con, y=projection, fill=exp_condition)) + 
+p1<-ggplot(lib_con_projection, aes(x=lib_con, y=projection, fill=exp_condition)) + 
     geom_bar(position=position_dodge(), stat="identity",
              colour="black", # Use black outlines,
              size=.3) + # Thinner lines
@@ -959,9 +990,10 @@ ggplot(lib_con_projection, aes(x=lib_con, y=projection, fill=exp_condition)) +
     ggtitle("Projection as function of\nExperimental Condition and Political Ideology") +
     scale_y_continuous() +
     theme_classic() 
+p1
 
 # Save the ggplot
-ggsave(here::here("figures", "libcon_projection.png"), width = 5, height = 5)
+ggsave(here::here("figures", "libcon_projection.png"), width = 7, height = 5)
 
 ```
 *Note*. Error bars show standard errors. 101 Liberals and 40 Moderates/Conservatives were included in the analysis.
@@ -977,7 +1009,7 @@ lib_con_stereotyping<- Rmisc::summarySE(libcon_subset, measurevar="stereotyping"
 lib_con_stereotyping
 
 ##Error bars represent standard error of the mean
-ggplot(lib_con_stereotyping, aes(x=lib_con, y=stereotyping, fill=exp_condition)) + 
+p2<-ggplot(lib_con_stereotyping, aes(x=lib_con, y=stereotyping, fill=exp_condition)) + 
     geom_bar(position=position_dodge(), stat="identity",
              colour="black", # Use black outlines,
              size=.3) + # Thinner lines
@@ -994,13 +1026,27 @@ ggplot(lib_con_stereotyping, aes(x=lib_con, y=stereotyping, fill=exp_condition))
     scale_y_continuous(expand = c(0,0),
                        breaks = seq(0,0.8,0.1)) +
     theme_classic() 
+p2
 
 # Save the ggplot
-ggsave(here::here("figures", "libcon_stereotyping.png"), width = 5, height = 5)
+ggsave(here::here("figures", "libcon_stereotyping.png"), width = 7, height = 5)
 
 ```
 *Note*. Error bars show standard errors. 101 Liberals and 40 Moderates/Conservatives were included in the analysis.
 
+
+## Make combined figure of interactions using `patchwork()`
+```{r, include=FALSE}
+library(patchwork)
+
+ (p1 / p2 ) 
+
+ggsave(here::here("figures","combined_libcon.png"), width = 7, height = 10)
+
+ (p1 | p2 ) 
+
+ggsave(here::here("figures","combined_libcon_horizontal.png"), width = 12, height = 5)
+```
 
 
 # Descriptives
